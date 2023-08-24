@@ -1,0 +1,14 @@
+sampleid	sample_type	sc_id	treatment	mc_round	age	sampleid_rev
+#q2:types	categorical	categorical	categorical	categorical	categorical	categorical
+M08_Fecal	fecal	2	Control	1	1	M08
+M08_Gut	gut	2	Control	1	1	M08
+M13_Fecal	fecal	2	CHT	1	1	M13
+M13_Gut	gut	2	CHT	1	1	M13
+M43_Fecal	fecal	3	Control	4	3	M42
+M43_Gut	gut	3	Control	4	3	M42
+M48_Fecal	fecal	3	CHT	4	3	M48
+M48_Gut	gut	3	CHT	4	3	M48
+M71_Fecal	fecal	5	Control	6	3	M71
+M71_Gut	gut	5	Control	6	3	M71
+M76_Fecal	fecal	5	CHT	6	3	M76
+M76_Gut	gut	5	CHT	6	3	M76

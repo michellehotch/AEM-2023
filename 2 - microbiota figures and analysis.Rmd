@@ -1,0 +1,2354 @@
+---
+title: "2 - microbiota figures and analysis"
+author: "Michelle Z Hotchkiss"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+#Packages
+
+```{r}
+library(tidyverse)
+
+library(ape)
+library(cowplot)
+library(devtools)
+library(emmeans)
+library(ggpubr)
+library(lme4)
+library(lmerTest)
+library(lmPerm)
+library(MetBrewer)
+library(performance) 
+library(RColorBrewer)
+library(vegan)
+
+devtools::install_github("jbisanz/qiime2R") # current version is 0.99.20
+library(qiime2R)
+
+install_github("pmartinezarbizu/pairwiseAdonis/pairwiseAdonis")
+library(pairwiseAdonis)
+
+BiocManager::install("ANCOMBC", force = TRUE)
+library(ANCOMBC)
+```
+
+#Load and format data
+
+##Metadata
+
+```{r}
+#RELATIVE ABUNDANCE
+
+#Metadata files - NOTE: Samples in the metadata file must be listed in the same order as in the distance matrices
+
+metadata_fecal<-read_q2metadata("data/5_metadata_fecal_q2.tsv")
+
+metadata_fvg1<-read_q2metadata("data/5_metadata_fvg_q2.tsv")
+
+metadata_fvg2<-read_q2metadata("data/5_metadata_fvg2_q2.tsv")
+
+
+#delete M57D3 from fecal metadata, was omitted during quality control steps in QIIME2 (had <1000 sequences)
+
+str(metadata_fecal)
+
+metadata_fecal <- metadata_fecal %>% 
+  filter(!(SampleID == "M57D3"))
+
+#reorder/rename treatment and day for fecal metadata
+
+metadata_fecal$treatment<-factor(metadata_fecal$treatment,levels=c("Control", "DMSO", "1 ppb", "10 ppb", "100 ppb", "800 ppb"))
+
+metadata_fecal$treatment<-recode_factor(metadata_fecal$treatment, Control = "Control", DMSO = "DMSO", `1 ppb`="1 ng/mL",`10 ppb`="10 ng/mL",`100 ppb`="100 ng/mL",`800 ppb`="800 ng/mL")
+
+metadata_fecal$day<-factor(metadata_fecal$day,levels=c("0", "3", "5", "8", "14"))
+
+
+
+#16S RRNA GENE COPY NUMBER
+
+#for figures
+qpcr_metadata <- read_csv("data/qpcr_metadata.csv")
+
+qpcr_metadata$treatment <- factor(qpcr_metadata$treatment, levels = c("Control", "DMSO", "1 ng/µL", "10 ng/µL", "100 ng/µL", "800 ng/µL"))
+
+qpcr_metadata$day <- factor(qpcr_metadata$day, levels = c("0", "3", "5", "8", "14", "Gut"))
+
+qpcr_metadata$sc_id <- as.factor(qpcr_metadata$sc_id)
+qpcr_metadata$day <- as.factor(qpcr_metadata$day)
+qpcr_metadata$age <- as.factor(qpcr_metadata$age)
+
+#for adonis
+qpcr_metadata_adonis <- read_csv("data/qpcr_metadata_pcoa.csv")
+
+qpcr_metadata_adonis$sc_id <- as.factor(qpcr_metadata_adonis$sc_id)
+qpcr_metadata_adonis$mc_id <- as.factor(qpcr_metadata_adonis$mc_id)
+qpcr_metadata_adonis$day <- as.factor(qpcr_metadata_adonis$day)
+qpcr_metadata_adonis$age <- as.factor(qpcr_metadata_adonis$age)
+
+qpcr_metadata_adonis <- as.data.frame(qpcr_metadata_adonis)
+
+```
+
+##Abundance Data
+
+```{r}
+#RELATIVE ABUNDANCES
+
+#For fecal and fecal vs. gut round 1
+relabun_data <- read_csv("data/tax_rel_abun.csv")
+
+#wide to long
+relabun_data_long <- 
+  gather(relabun_data, taxa_id, abundance, Enterobacteriaceae_ng...9:Lactobacillus...83)
+
+#format names
+relabun_data_long$taxa_name <- sub("\\....*","",relabun_data_long$taxa_id)
+
+#reorder variables
+relabun_data_long$treatment <- factor(relabun_data_long$treatment, levels = c("Control", "DMSO", "1 ppb", "10 ppb", "100 ppb", "800 ppb"))
+
+relabun_data_long$day <- factor(relabun_data_long$day, levels = c("0", "3", "5", "8", "14"))
+
+#rename treatments
+relabun_data_long$treatment <- recode_factor(relabun_data_long$treatment, Control = "Control", DMSO = "DMSO", `1 ppb`="1 ng/mL",`10 ppb`="10 ng/mL",`100 ppb`="100 ng/mL",`800 ppb`="800 ng/mL")
+
+
+#For fecal vs. gut round 2
+relabun_data_fvg2 <- read_csv("data/tax_relabun_fvg2.csv")
+
+relabun_data_long_fvg2 <- 
+  gather(relabun_data_fvg2, taxa_id, abundance, Pseudomonas:Snodgrassella)
+
+relabun_data_long_fvg2$scid<-as.factor(relabun_data_long_fvg2$scid)
+
+relabun_data_long_fvg2$day<-as.factor(relabun_data_long_fvg2$day)
+
+relabun_data_long_fvg2$sampletype <- recode_factor(relabun_data_long_fvg2$sampletype, fecal = "Fecal", gut = "Gut")
+
+relabun_data_long_fvg2$day <- recode_factor(relabun_data_long_fvg2$day, D0 = "Day 0", Dm5 = "Day -5", D14 = "Day 14")
+
+relabun_data_long_fvg2$day <- factor(relabun_data_long_fvg2$day, levels = c("Day -5", "Day 0", "Day 14"))
+
+
+#16S RRNA COPY NUMBER
+
+genecounttotal_data <- read_csv("data/qpcr_absolabun.csv")
+
+genecountotal_data_long <- 
+  gather(genecounttotal_data, taxa_id, abundance, Enterobacteriaceae_ng:Leucobacter)
+
+genecountotal_data_long$taxa_name <- sub("\\....*","",genecountotal_data_long$taxa_id)
+
+genecountotal_data_long$treatment <- factor(genecountotal_data_long$treatment, levels = c("Control", "DMSO", "1 ng/µL", "10 ng/µL", "100 ng/µL", "800 ng/µL"))
+
+genecountotal_data_long$day <- factor(genecountotal_data_long$day, levels = c("0", "3", "5", "8", "14", "Gut"))
+
+genecountotal_data_long$abundance <- as.numeric(genecountotal_data_long$abundance)
+
+genecountotal_data_long$genecount_total <- as.numeric(genecountotal_data_long$genecount_total)
+
+genecountotal_data_long <- genecountotal_data_long %>% 
+  mutate(taxa_abunpermicrol = abundance/(final_fecal_volume_mL*1000))
+
+
+fvg2_qpcr_data <- read_csv("data/qPCR_fvg2.csv")
+
+fvg2_qpcr_data$scid <- as.factor(fvg2_qpcr_data$scid)
+```
+
+##Distance Matrices
+
+```{r}
+#RELATIVE ABUNDANCE
+
+braycurtdm_fvg1<-read_qza("results/bray_curtis_distance_matrix_fvg.qza")
+
+braycurtdm_fvg2<-read_qza("results/fvg2_bray_curtis_distance_matrix.qza")
+
+fvg2_dist_pairvother <- read_csv("data/fvg2_dist_pairvother.csv")
+
+
+
+#ABSOLUTE ABUNDANCE
+
+#Fecal Matrix
+genecounttotal_wideprep <- genecountotal_data_long %>% 
+  filter(!(day == "Gut")) %>% 
+  group_by(samp_id, taxa_name) %>% 
+  summarise(totalabunpermicrol = sum(taxa_abunpermicrol))
+
+genecounttotal_pcoa <- genecounttotal_wideprep %>% 
+  pivot_wider(names_from = taxa_name, values_from = totalabunpermicrol)
+
+genecounttotal_pcoa <- genecounttotal_pcoa %>% 
+  filter(!(is.na(Acetobacter)))
+
+genecounttotal_pcoa <- genecounttotal_pcoa %>% 
+  as.data.frame()
+
+rownames(genecounttotal_pcoa) <- genecounttotal_pcoa$samp_id #instead of 1-293, now it's the sampleids coded into the row names so they're not part of the matrix
+genecounttotal_pcoa <- genecounttotal_pcoa[, -1]
+genecounttotal_pcoa_matrix <- as.matrix(genecounttotal_pcoa)
+
+#compute distance matrix
+qpcr_pcoabray_matrix <- vegdist(genecounttotal_pcoa_matrix, "bray")
+
+#Fecal vs. Gut 1 Matrix
+
+fvg1_dm_wideprep <- genecountotal_data_long %>% 
+  filter(day == "Gut") %>% 
+  group_by(samp_id, taxa_name) %>% 
+  summarise(totalabun = sum(abundance))
+
+fvg1_abun_pcoa <- fvg1_dm_wideprep %>% 
+  pivot_wider(names_from = taxa_name, values_from = totalabun)
+
+fvg1_abun_pcoa <- fvg1_abun_pcoa %>% 
+  filter(!(is.na(Acetobacter)))
+
+fvg1_abun_pcoa <- fvg1_abun_pcoa %>% 
+  as.data.frame()
+
+rownames(fvg1_abun_pcoa) <- fvg1_abun_pcoa$samp_id #instead of 1-293, now it's the sampleids coded into the row names so they're not part of the matrix
+fvg1_abun_pcoa <- fvg1_abun_pcoa[, -1]
+fvg1_abun_pcoa <- as.matrix(fvg1_abun_pcoa)
+
+#compute distance matrix
+fvg1_abun_pcoa_matrix <- vegdist(fvg1_abun_pcoa, "bray")
+
+
+```
+
+
+##PCoA Results
+
+```{r}
+braycurt_fecal<-read_qza("results/fecal_bray_curtis_pcoa_results.qza")
+
+braycurt_fvg1<-read_qza("results/fvg_bray_curtis_pcoa_results.qza")
+
+braycurt_fvg2<-read_qza("results/fvg2_bray_curtis_pcoa_results.qza")
+```
+
+##Shannon Diversity
+
+```{r}
+shannon_fecal<-read_qza("results/fecal_shannon_vector.qza")
+
+shannon_fvg1<-read_qza("results/fvg_shannon_vector.qza")
+
+shannon_fvg2<-read_qza("results/fvg2_shannon_vector.qza")
+```
+
+#Figures
+
+##Stacked Barplots- Relative abundance
+
+Change taxa with <1% relative abundance to "other"
+
+```{r}
+#make dataframe where <1% is changed to other
+relabundata_data_long_onep <- relabun_data_long %>% 
+  filter(!(treatment =="#N/A")) %>% 
+  filter(!(mc_id =="Gut")) %>% 
+  group_by(taxa_name) %>% 
+  summarise(mean = mean(abundance)) %>% 
+  ungroup() %>% 
+  mutate(taxa_name_p = case_when(mean < 0.01 ~ "Other", mean>0.01 ~ taxa_name))
+
+#join that dataframe to relabun_data_long
+
+relabun_data_lother <- relabun_data_long %>% left_join(relabundata_data_long_onep, by = "taxa_name")
+```
+
+Rename Enterobacteriaceae_ng to Enterobacteriaceae
+
+```{r}
+relabun_data_lother$taxa_name_p <- recode_factor(relabun_data_lother$taxa_name_p, Enterobacteriaceae_ng = "Enterobacteriaceae")
+```
+
+
+Reorder taxa 
+
+```{r}
+relabun_data_lother$taxa_name_p <- factor(relabun_data_lother$taxa_name_p, levels = c("Acinetobacter", "Bifidobacterium", "Bombilactobacillus", "Bombiscardovia", "Enterobacteriaceae", "Lactobacillus", "Schmidhempelia", "Snodgrassella", "Other"))
+```
+
+####2A - Fecal Samples
+
+```{r}
+#faceted by source colony
+fecalstackrel_fig<-
+  relabun_data_lother %>% 
+  filter(!(treatment =="#N/A")) %>% 
+  filter(!(mc_id =="Gut")) %>% 
+  group_by(sample, treatment, day, taxa_name_p, sc_id, age) %>% 
+  summarise(total = sum(abundance)) %>% 
+  group_by(treatment, day, taxa_name_p, sc_id) %>% #extra variables here will make the barplots sum to 2 - only include the variables that you want to display in the final figure
+  summarise(mean = mean(total)) %>% 
+  ggplot(aes(x=day, y=mean, fill=taxa_name_p)) +
+    geom_bar(position = "stack", stat="identity") +
+    facet_grid(cols = vars(treatment), rows = vars(sc_id))+
+    theme_classic()+
+
+  theme(panel.spacing = unit(.50, "lines"),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 1), 
+    strip.background = element_rect(
+     color="white", linewidth=1.5, linetype="solid"),
+     strip.text = element_text(colour = "black"),
+    legend.text.align = 0,
+    axis.line=element_blank(),
+    text = element_text(size = 16), axis.text.x = element_text(size = 14, color = "black"),
+        axis.text.y = element_text(size = 12, color = "black"),
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  scale_y_continuous(name = "Relative abundance", limits = c(0,1.01), breaks = c(0.5,1), expand = c(0, 0))+
+  scale_x_discrete(name = "Day")+
+    scale_fill_manual(name = "Taxon",
+                      values = c(
+                                "Acinetobacter"="#e95f52",
+                                "Bifidobacterium"="#f08944",
+                                "Bombilactobacillus"="#f9ab58",
+                                "Bombiscardovia"="#fed16c",
+                                "Enterobacteriaceae"="#70bed5",
+                                "Lactobacillus"="#4e8dae",
+                                "Schmidhempelia"="#336695",
+                                "Snodgrassella"="#1b426d",
+                                "Other"="#8e908b"
+                               ),
+                      labels = c(expression(italic("Acinetobacter")),
+                                 expression(italic("Bifidobacterium")),
+                                 expression(italic("Bombilactobacillus")),
+                                 expression(italic("Bombiscardovia")),
+                                 "Enterobacteriaceae",
+                                 expression(italic("Lactobacillus")),
+                                 expression(italic("Schmidhempelia")),
+                                 expression(italic("Snodgrassella")),
+                                 "Other"))+
+  guides(fill=guide_legend(nrow=3,byrow=TRUE))
+```
+
+####4A - Fecal vs. Gut 1
+
+Make dataframe where <1% is changed to other
+
+```{r}
+relabundata_data_long_onep_gut <- relabun_data_long %>% 
+  filter(!(treatment =="#N/A")) %>% 
+  group_by(taxa_name) %>% 
+  summarise(mean = mean(abundance)) %>% 
+  ungroup() %>% 
+  mutate(taxa_name_p = case_when(mean < 0.01 ~ "Other", mean>0.01 ~ taxa_name))
+
+#join that dataframe to relabun_data_long
+
+relabun_gut <- relabun_data_long %>% left_join(relabundata_data_long_onep_gut, by = "taxa_name")
+```
+
+Make gut dataset
+
+```{r}
+relabun_gut <- relabun_gut %>% 
+  filter(mc_id =="Gut")
+```
+
+Rename Enterobacteriaceae_ng to Enterobacteriaceae
+
+```{r}
+relabun_gut$taxa_name_p <- recode_factor(relabun_gut$taxa_name_p, Enterobacteriaceae_ng = "Enterobacteriaceae")
+```
+
+Reorder taxa 
+
+```{r}
+relabun_gut$taxa_name_p <- factor(relabun_gut$taxa_name_p, levels = c("Acinetobacter", "Bifidobacterium", "Bombilactobacillus", "Bombiscardovia", "Enterobacteriaceae", "Lactobacillus", "Schmidhempelia", "Snodgrassella", "Other"))
+```
+
+Rename samples
+
+```{r}
+relabun_gut$sample <- recode_factor(relabun_gut$sample, M8D14 = "M8Con_Fecal", M43D14 = "M43Con_Fecal", M71D14 = "M71Con_Fecal", M13D14 = "M13CHT_Fecal", M48D14 = "M48CHT_Fecal", M76D14 = "M76CHT_Fecal", GS_M8_Con = "M8Con_Gut", GS_M43_Con = "M43Con_Gut", GS_M71_Con = "M71Con_Gut", GS_M13_800 = "M13CHT_Gut", GS_M48_800 = "M48CHT_Gut", GS_M76_800 = "M76CHT_Gut")
+```
+
+Split names into sample id and type
+
+```{r}
+relabun_gut <- relabun_gut %>% 
+    separate(sample, c("sample_id", "sample_type"),"_")
+```
+
+Reorder samples
+
+```{r}
+relabun_gut$sample_id <- factor(relabun_gut$sample_id, levels = c("M8Con", "M43Con", "M71Con", "M13CHT", "M48CHT", "M76CHT"))
+```
+
+```{r}
+fvg1_relabun <- 
+  relabun_gut %>% 
+  filter(mc_id =="Gut") %>% 
+  group_by(sample_id, taxa_name_p, treatment, sc_id, sample_type) %>% 
+  summarise(total = sum(abundance)) %>% 
+  group_by(taxa_name_p, sample_id, treatment, sc_id, sample_type) %>% 
+  summarise(mean = mean(total)) %>% 
+  
+  ggplot(aes(x=sample_id, y=mean, fill=taxa_name_p)) +
+  #geom_rect(xmin=3.5,xmax=7,ymin=0,ymax=1.05, fill="#e6e6e6")+
+    geom_bar(position = "stack", stat="identity", width = 0.7) +
+  
+  facet_grid(rows = vars(sample_type))+
+
+  theme_classic()+
+  theme(text = element_text(size = 16), 
+        legend.position="right",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12),
+        legend.text.align = 0,
+        axis.text.x = element_text(size = 14, color = "black"),
+        axis.text.y = element_text(size = 12, color = "black"),
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  theme(axis.text.x = element_text(angle = 45, hjust=1))+
+  scale_y_continuous(name = "Relative abundance", expand = c(0, 0), limits = c(0,1.05), breaks = c(0.5,1))+
+  scale_x_discrete(name = "Microcolony and Treatment")+
+     scale_fill_manual(name = "Taxa",
+                      values = c(
+                                "Acinetobacter"="#e95f52",
+                                "Bifidobacterium"="#f08944",
+                                "Bombilactobacillus"="#f9ab58",
+                                "Bombiscardovia"="#fed16c",
+                                "Enterobacteriaceae"="#70bed5",
+                                "Lactobacillus"="#4e8dae",
+                                "Schmidhempelia"="#336695",
+                                "Snodgrassella"="#1b426d",
+                                "Other"="#8e908b"
+                               ),
+                       labels = c(expression(italic("Acinetobacter")),
+                                 expression(italic("Bifidobacterium")),
+                                 expression(italic("Bombilactobacillus")),
+                                 expression(italic("Bombiscardovia")),
+                                 "Enterobacteriaceae",
+                                 expression(italic("Lactobacillus")),
+                                 expression(italic("Schmidhempelia")),
+                                 expression(italic("Snodgrassella")),
+                                 "Other"))+
+  guides(fill=guide_legend(nrow=9,byrow=FALSE))
+```
+
+
+####5A - Fecal vs. Gut 2
+
+```{r}
+relabundata_data_long_onep_fvg2 <- 
+relabun_data_long_fvg2 %>% 
+  filter(!(day =="#N/A")) %>% 
+  group_by(taxa_id) %>% 
+  summarise(mean = mean(abundance)) %>% 
+  ungroup() %>% 
+  mutate(taxa_name_p = case_when(mean < 0.01 ~ "Other", mean>0.01 ~ taxa_id))
+
+#join that dataframe to relabun_data_long
+
+relabun_fvg2 <- relabun_data_long_fvg2 %>% left_join(relabundata_data_long_onep_fvg2, by = "taxa_id")
+```
+
+```{r}
+#reorder taxa
+relabun_fvg2$taxa_name_p <- factor(relabun_fvg2$taxa_name_p, levels = c("Bifidobacterium", "Bombilactobacillus", "Bombiscardovia", "Enterobacteriaceae", "Lactobacillus", "Schmidhempelia", "Snodgrassella", "Other"))
+```
+
+
+```{r}
+fvg2_relabun<- 
+  relabun_fvg2 %>% 
+  filter(!(sampleid == "Blank")) %>% 
+  group_by(mcid, taxa_name_p, day, scid, sampletype) %>% 
+  summarise(total = sum(abundance)) %>% 
+  group_by(taxa_name_p, mcid, day, scid, sampletype) %>% 
+  summarise(mean = mean(total)) %>% 
+  
+  ggplot(aes(x=mcid, y=mean, fill=taxa_name_p)) +
+  #geom_rect(xmin=3.5,xmax=7,ymin=0,ymax=1.05, fill="#e6e6e6")+
+    geom_bar(position = "stack", stat="identity", width = 0.7) +
+  
+  facet_grid(rows = vars(sampletype), cols = vars(day), scales="free_x")+
+
+  theme_classic()+
+  theme(text = element_text(size = 16), 
+        legend.position="right",
+        legend.title = element_blank(),
+        legend.text.align = 0,
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 14, color = "black"),
+        axis.text.y = element_text(size = 12, color = "black"),
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  theme(axis.text.x = element_text(angle = 45, hjust=1))+
+  scale_y_continuous(name = "Relative abundance", expand = c(0, 0), limits = c(0,1.05), breaks = c(0.5,1))+
+  scale_x_discrete(name = "Microcolony")+
+     scale_fill_manual(name = "Taxa",
+                      values = c(
+                                "Acinetobacter"="#e95f52",
+                                "Bifidobacterium"="#f08944",
+                                "Bombilactobacillus"="#f9ab58",
+                                "Bombiscardovia"="#fed16c",
+                                "Enterobacteriaceae"="#70bed5",
+                                "Lactobacillus"="#4e8dae",
+                                "Schmidhempelia"="#336695",
+                                "Snodgrassella"="#1b426d",
+                                "Other"="#8e908b"
+                               ),
+                       labels = c(
+                                 expression(italic("Bifidobacterium")),
+                                 expression(italic("Bombilactobacillus")),
+                                 expression(italic("Bombiscardovia")),
+                                 expression(italic("Lactobacillus")),
+                                 expression(italic("Schmidhempelia")),
+                                 expression(italic("Snodgrassella")),
+                                 "Other"))+
+  guides(fill=guide_legend(nrow=7))
+```
+
+##Stacked Bar Plots - 16S rRNA Copy Number
+
+Change taxa with <1% abundance to "other"
+
+```{r}
+genecount_lother <- genecountotal_data_long %>% left_join(relabundata_data_long_onep, by = "taxa_name")
+
+genecount_lother$sc_id <- as.factor(genecount_lother$sc_id)
+genecount_lother$mc_id <- as.factor(genecount_lother$mc_id)
+genecount_lother$age <- as.factor(genecount_lother$age)
+```
+
+Rename Enterobacteriaceae_ng to Enterobacteriaceae
+
+```{r}
+genecount_lother$taxa_name_p <- recode_factor(genecount_lother$taxa_name_p, Enterobacteriaceae_ng = "Enterobacteriaceae")
+```
+
+Reorder taxa 
+
+```{r}
+genecount_lother$taxa_name_p <- factor(genecount_lother$taxa_name_p, levels = c("Acinetobacter", "Bifidobacterium", "Bombilactobacillus", "Bombiscardovia", "Enterobacteriaceae", "Lactobacillus", "Schmidhempelia", "Snodgrassella", "Other"))
+```
+
+####2B 
+
+```{r}
+#faceted by source colony
+fecalstack16S_fig<-
+genecount_lother %>% 
+  filter(!(is.na(taxa_abunpermicrol))) %>% 
+  filter(!(day =="Gut")) %>% 
+  group_by(samp_id, treatment, day, taxa_name_p, sc_id, age) %>% 
+  summarise(total = sum(taxa_abunpermicrol)) %>% 
+  group_by(treatment, day, taxa_name_p, sc_id) %>% #extra variables here will make the barplots sum to 2 - only include the variables that you want to display in the final figure
+  summarise(mean = mean(total)) %>% 
+  ggplot(aes(x=day, y=mean, fill=taxa_name_p)) +
+    geom_bar(position = "stack", stat="identity") +
+    facet_grid(cols = vars(treatment), rows = vars(sc_id))+
+
+    theme_classic()+
+
+  theme(panel.spacing = unit(.50, "lines"),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 1), 
+    strip.background = element_rect(
+     color="white", linewidth=1.5, linetype="solid"),
+    legend.text.align = 0,
+     strip.text = element_text(colour = "black"),
+    axis.line=element_blank(),
+    text = element_text(size = 16), axis.text.x = element_text(size = 14, color = "black"),
+        axis.text.y = element_text(size = 12, color = "black"),
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+
+  scale_y_continuous(name = "16S rRNA gene copy number", expand = c(0, 0), breaks = c(1000000,2000000))+
+  scale_x_discrete(name = "Day")+
+    scale_fill_manual(name = "Taxon",
+                      values = c(
+                                "Acinetobacter"="#e95f52",
+                                "Bifidobacterium"="#f08944",
+                                "Bombilactobacillus"="#f9ab58",
+                                "Bombiscardovia"="#fed16c",
+                                "Enterobacteriaceae"="#70bed5",
+                                "Lactobacillus"="#4e8dae",
+                                "Schmidhempelia"="#336695",
+                                "Snodgrassella"="#1b426d",
+                                "Other"="#8e908b"
+                               ),
+                      labels = c(expression(italic("Acinetobacter")),
+                                 expression(italic("Bifidobacterium")),
+                                 expression(italic("Bombilactobacillus")),
+                                 expression(italic("Bombiscardovia")),
+                                 "Enterobacteriaceae",
+                                 expression(italic("Lactobacillus")),
+                                 expression(italic("Schmidhempelia")),
+                                 expression(italic("Snodgrassella")),
+                                 "Other"))
+```
+
+####2C 
+
+Fecal stacked relative, fecal stacked 16S, total 16S
+
+```{r}
+genecount_lother <- genecount_lother %>% 
+  mutate(taxa_abunpermicrol = abundance/(final_fecal_volume_mL*1000))
+
+fecal16S_total<-
+genecount_lother %>% 
+  filter(!(is.na(abundance))) %>% 
+  filter(!(is.na(final_fecal_volume_mL))) %>% 
+  filter(!(day =="Gut")) %>% 
+  group_by(samp_id, treatment, day, sc_id) %>% 
+  summarise(total_abun = sum(taxa_abunpermicrol)) %>%
+  ggplot(aes(x = treatment, y = total_abun, fill = treatment, color = treatment))+
+ geom_boxplot(alpha=0.4, lwd=0.7)+
+  geom_jitter(shape=16, position=position_jitter(width=0.15, height=0), size=2)+
+  facet_grid(cols = vars(day))+
+  theme_classic()+
+  theme(
+    panel.spacing = unit(.20, "lines"),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 1), 
+    strip.background = element_rect(
+     color="white", linewidth=1.5, linetype="solid"),
+     strip.text = element_text(colour = "black"),
+    axis.line=element_blank(),
+    text = element_text(size = 16), 
+    axis.text.x = element_text(size = 13, color = "black", angle=45, hjust=1, vjust=1),
+        axis.text.y = element_text(size = 14, color = "black"),
+        legend.position = "none",
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  scale_x_discrete(name="Treatment")+
+  scale_y_continuous(name ="16S rRNA gene copy number", expand = c(0,0), limits = c(0,5100000))+
+  scale_fill_met_d("Hiroshige", direction = -1)+
+  scale_color_met_d("Hiroshige", direction = -1)
+```
+
+####2 - Multipanel
+
+```{r}
+fig2AB<-ggarrange(fecalstackrel_fig,fecalstack16S_fig,
+              common.legend = TRUE,
+              legend = "bottom",
+              labels = c("A","B"),
+              ncol = 1,
+              nrow = 2,
+              align = "hv")
+          
+
+ggarrange(fig2AB,fecal16S_total,
+          labels = c("","C"),
+          ncol = 1,
+          nrow = 2,
+          heights = c(4,1.5)
+            )
+
+```
+
+
+##Alpha Diversity
+
+###S3A - Fecal
+
+```{r}
+age_names <- list(
+  '1'="Age: 1 Week",
+  '2'="Age: 3 Weeks"
+)
+
+age_labeller <- function(variable,value){
+  return(age_names[value])
+}
+
+fecal_alphadiv_qpcr <- diversity(qpcr_pcoabray_matrix, index = "shannon")
+
+fecal_alphadiv_qpcr_data <- fecal_alphadiv_qpcr %>% 
+  as_tibble(rownames = "samp_id")
+
+
+fecal_alphadiv_qpcr_data <- left_join(fecal_alphadiv_qpcr_data, qpcr_metadata, by = "samp_id") 
+fecal_alphadiv_qpcr_data <- fecal_alphadiv_qpcr_data[,1:15]
+
+fecal_alphafig <- fecal_alphadiv_qpcr_data %>% 
+  filter(!(is.na(final_fecal_volume_mL))) %>% 
+  filter(!(day =="Gut")) %>% 
+  ggplot(aes(x = day, y = value, fill = day, color = day))+
+  geom_boxplot(alpha=0.4, lwd=0.7)+
+  geom_jitter(shape=16, position=position_jitter(width=0.15, height=0), size=3)+
+  theme_classic()+
+  theme(
+    panel.spacing = unit(.20, "lines"),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 1), 
+    strip.background = element_rect(
+     color="white", linewidth=1.5, linetype="solid"),
+     strip.text = element_text(colour = "black"),
+    axis.line=element_blank(),
+    text = element_text(size = 16), axis.text.x = element_text(size = 16, color = "black"),
+        axis.text.y = element_text(size = 16, color = "black"),
+        legend.position = "none",
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  scale_x_discrete(name="Day")+
+  scale_y_continuous(name ="Shannon Diversity Index", expand = c(0,0), limits = c(5.55, 5.71))+
+  scale_fill_met_d("Hiroshige", direction = -1)+
+  scale_color_met_d("Hiroshige", direction = -1)
+```
+
+
+###S3B - Fecal vs. Gut 2
+
+```{r}
+shannon_fvg2_simp<-shannon_fvg2$data %>% rownames_to_column("SampleID")
+
+metadata_fvg2_shannon<-
+metadata_fvg2 %>% 
+  left_join(shannon_fvg2_simp)
+
+metadata_fvg2_shannon$day <- factor(metadata_fvg2_shannon$day, levels = c("-5","0","14"))
+```
+
+```{r}
+#rename days
+
+metadata_fvg2_shannon$day<-
+  recode_factor(metadata_fvg2_shannon$day, "-5" = "Day -5", "0" = "Day 0", "14"= "Day 14")
+```
+
+```{r}
+fvg2_alphafig <- 
+metadata_fvg2_shannon %>% 
+  ggplot(aes(x=day, y=shannon_entropy, fill = day, color = day))+
+    geom_boxplot(alpha=0.5, lwd=0.8)+
+  geom_jitter(shape=16, position=position_jitter(width=0.15, height=0), size=2)+
+  theme_classic()+
+  theme(
+    panel.spacing = unit(.20, "lines"),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 1), 
+    strip.background = element_rect(
+     color="white", linewidth=1.5, linetype="solid"),
+     strip.text = element_text(colour = "black"),
+    axis.line=element_blank(),
+    text = element_text(size = 16), axis.text.x = element_text(size = 16, color = "black"),
+        axis.text.y = element_text(size = 16, color = "black"),
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)),
+        legend.position = "none")+
+  scale_y_continuous(name = "Shannon Diversity Index", limits = c(1.95,3.4))+
+  scale_x_discrete(name = "Day")+
+scale_fill_met_d("Hiroshige", direction = -1)+
+  scale_color_met_d("Hiroshige", direction = -1)
+```
+
+###S3 - Multipanel Figure
+
+```{r}
+cowplot::plot_grid(fecal_alphafig, fvg2_alphafig,
+          labels = c("A", "B"),
+          # label_x = 0.01,
+          # label_y = 0.98,
+          label_size = 16,
+          ncol = 2,
+          rel_widths =c(1,1),
+          axis = c("tb"),
+          align = "hv")
+```
+
+##Fecal Taxa Boxplots
+
+#### S4A - Total
+
+```{r}
+#per µL of feces 
+genecount_lother <- genecount_lother %>% 
+  mutate(taxa_abunpermicrol = abundance/(final_fecal_volume_mL*1000))
+
+figgc_total<-
+genecount_lother %>% 
+  filter(!(is.na(abundance))) %>% 
+  filter(!(is.na(final_fecal_volume_mL))) %>% 
+  filter(!(day =="Gut")) %>% 
+  group_by(samp_id, treatment, day, sc_id) %>% 
+  summarise(total_abun = sum(taxa_abunpermicrol)) %>%
+  ggplot(aes(x = treatment, y = total_abun, fill = treatment, color = treatment))+
+ geom_boxplot(alpha=0.4, lwd=0.7)+
+  geom_jitter(shape=16, position=position_jitter(width=0.15, height=0), size=2)+
+  facet_grid(cols = vars(day))+
+  theme_classic()+
+  theme(
+    panel.spacing = unit(.20, "lines"),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 1), 
+    strip.background = element_rect(
+     color="white", linewidth=1.5, linetype="solid"),
+     strip.text = element_text(colour = "black"),
+    axis.line=element_blank(),
+    text = element_text(size = 16), 
+    axis.text.x = element_text(size = 13, color = "black", angle=45, hjust=1, vjust=1),
+        axis.text.y = element_text(size = 14, color = "black"),
+        legend.position = "none",
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  scale_x_discrete(name="Treatment")+
+  scale_y_continuous(name ="16S rRNA gene copy number", expand = c(0,0), limits = c(0,5100000))+
+  scale_fill_met_d("Hiroshige", direction = -1)+
+  scale_color_met_d("Hiroshige", direction = -1)
+```
+
+
+#### S4B - Bifidobacterium
+
+```{r}
+figgc_bifido<-
+  genecount_lother %>% 
+  filter(!(is.na(abundance))) %>% 
+  #filter(!(samp_id == "M19D5")) %>% #this sample has much higher total gene count due to low fecal volume, makes data visualization for the rest of the samples difficult
+  filter(!(is.na(final_fecal_volume_mL))) %>% 
+  filter(!(day =="Gut")) %>% 
+  filter(taxa_name == "Bifidobacterium") %>% 
+  group_by(samp_id, treatment, day, sc_id, taxa_name_p) %>% 
+  summarise(total_abun = sum(taxa_abunpermicrol)) %>%
+  ggplot(aes(x = day, y = total_abun))+
+  geom_boxplot(alpha=0.4, lwd=0.7,  fill = "#f08944", color = "#f08944")+
+  geom_jitter(shape=16, position=position_jitter(width=0.15, height=0), size=3,  fill = "#f08944", color = "#f08944")+
+  facet_grid(cols = vars(taxa_name_p))+
+
+  
+  theme_classic()+
+  theme(
+    panel.spacing = unit(.20, "lines"),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 1), 
+      strip.background = element_rect(
+     color="white", linewidth=1.5, linetype="solid"),
+     strip.text = element_text(colour = "black", size = 16, face = "italic"),
+    axis.line=element_blank(),
+    text = element_text(size = 16), axis.text.x = element_text(size = 16, color = "black"),
+        axis.text.y = element_text(size = 14, color = "black"),
+        legend.position = "none",
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  scale_x_discrete(name="Day")+
+  scale_y_continuous(name ="16S rRNA gene copy number", expand = c(0,0), limits = c(0,550000),labels = scales::scientific)
+```
+
+#### S4C - Bombilactobacillus
+
+```{r}
+figgc_bombilac<-
+genecount_lother %>% 
+  filter(!(is.na(abundance))) %>% 
+  filter(!(samp_id == "M19D5")) %>% #this sample has much higher total gene count due to low fecal volume, makes data visualization for the rest of the samples difficult
+  filter(!(is.na(final_fecal_volume_mL))) %>% 
+  filter(!(day =="Gut")) %>% 
+  filter(taxa_name == "Bombilactobacillus") %>% 
+  group_by(samp_id, treatment, day, sc_id,taxa_name_p) %>% 
+  summarise(total_abun = sum(taxa_abunpermicrol)) %>%
+  ggplot(aes(x = day, y = total_abun))+
+  geom_boxplot(alpha=0.4, lwd=0.7,  fill = "#f9ab58", color = "#f9ab58")+
+  geom_jitter(shape=16, position=position_jitter(width=0.15, height=0), size=3,  fill = "#f9ab58", color = "#f9ab58")+
+  facet_grid(cols = vars(taxa_name_p))+
+
+  
+  theme_classic()+
+  theme(
+    panel.spacing = unit(.20, "lines"),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 1), 
+      strip.background = element_rect(
+     color="white", linewidth=1.5, linetype="solid"),
+     strip.text = element_text(colour = "black", size = 16, face = "italic"),
+    axis.line=element_blank(),
+    text = element_text(size = 16), axis.text.x = element_text(size = 16, color = "black"),
+        axis.text.y = element_text(size = 14, color = "black"),
+        legend.position = "none",
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  scale_x_discrete(name="Day")+
+  scale_y_continuous(name ="16S rRNA gene copy number", expand = c(0,0), labels = scales::scientific, limits = c(0, 310000))
+```
+
+#### S4D - Enterobacteriaceae
+
+```{r}
+figgc_entero<-
+genecount_lother %>% 
+  filter(!(is.na(abundance))) %>% 
+  filter(!(is.na(final_fecal_volume_mL))) %>% 
+  filter(!(day =="Gut")) %>% 
+  filter(taxa_name == "Enterobacteriaceae_ng") %>% 
+ group_by(samp_id, treatment, day, sc_id,taxa_name_p) %>% 
+ summarise(total_abun = sum(taxa_abunpermicrol)) %>%
+  ggplot(aes(x = day, y = total_abun))+
+  geom_boxplot(alpha=0.4, lwd=0.7,  fill = "#70bed5", color = "#70bed5")+
+  geom_jitter(shape=16, position=position_jitter(width=0.15, height=0), size=3,  fill = "#70bed5", color = "#70bed5")+
+  facet_grid(cols = vars(taxa_name_p))+
+
+  
+  theme_classic()+
+  theme(
+    panel.spacing = unit(.20, "lines"),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 1), 
+      strip.background = element_rect(
+     color="white", linewidth=1.5, linetype="solid"),
+     strip.text = element_text(colour = "black", size = 16),
+    axis.line=element_blank(),
+    text = element_text(size = 16), axis.text.x = element_text(size = 16, color = "black"),
+        axis.text.y = element_text(size = 14, color = "black"),
+        legend.position = "none",
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  scale_x_discrete(name="Day")+
+  scale_y_continuous(name ="16S rRNA gene copy number", expand = c(0,0), labels = scales::scientific,limits = c(0,1900000))
+```
+
+#### S4E - Lactobacillus
+
+```{r}
+figgc_lacto<-
+genecount_lother %>% 
+  filter(!(is.na(abundance))) %>% 
+  filter(!(is.na(final_fecal_volume_mL))) %>% 
+  filter(!(day =="Gut")) %>% 
+  filter(taxa_name == "Lactobacillus") %>% 
+  group_by(samp_id, treatment, day, sc_id, taxa_name_p) %>% 
+  summarise(total_abun = sum(taxa_abunpermicrol)) %>% #multiple records assigned to one taxa, so sum them 
+  
+  ggplot(aes(x = day, y = total_abun))+
+    geom_boxplot(alpha=0.4, lwd=0.7,  fill = "#4e8dae", color = "#4e8dae")+
+  geom_jitter(shape=16, position=position_jitter(width=0.15, height=0), size=3,  fill = "#4e8dae", color = "#4e8dae")+
+  facet_grid(cols = vars(taxa_name_p))+
+
+  
+  theme_classic()+
+  theme(
+    panel.spacing = unit(.20, "lines"),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 1), 
+      strip.background = element_rect(
+     color="white", linewidth=1.5, linetype="solid"),
+     strip.text = element_text(colour = "black", size = 16, face = "italic"),
+    axis.line=element_blank(),
+    text = element_text(size = 16), axis.text.x = element_text(size = 16, color = "black"),
+        axis.text.y = element_text(size = 14, color = "black"),
+        legend.position = "none",
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  scale_x_discrete(name="Day")+
+  scale_y_continuous(name ="16S rRNA gene copy number", expand = c(0,0), labels = scales::scientific, limits = c(0,1450000))
+```
+
+#### S4F - Schmidhempelia
+
+```{r}
+figgc_Schmid<-
+  genecount_lother %>% 
+  filter(!(is.na(abundance))) %>% 
+  filter(!(samp_id == "M19D5")) %>% #this sample has much higher total gene count due to low fecal volume, makes data visualization for the rest of the samples difficult
+  filter(!(is.na(final_fecal_volume_mL))) %>% 
+  filter(!(day =="Gut")) %>% 
+  filter(taxa_name == "Schmidhempelia") %>% 
+  group_by(samp_id, treatment, day, sc_id, taxa_name_p) %>% 
+  summarise(total_abun = sum(taxa_abunpermicrol)) %>% #multiple records assigned to one taxa, so sum them 
+  
+   ggplot(aes(x = day, y = total_abun))+
+    geom_boxplot(alpha=0.4, lwd=0.7,  fill = "#336695", color = "#336695")+
+  geom_jitter(shape=16, position=position_jitter(width=0.15, height=0), size=3,  fill = "#336695", color = "#336695")+
+  facet_grid(cols = vars(taxa_name_p))+
+
+  
+  theme_classic()+
+  theme(
+    panel.spacing = unit(.20, "lines"),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 1), 
+      strip.background = element_rect(
+     color="white", linewidth=1.5, linetype="solid"),
+     strip.text = element_text(colour = "black", size = 16, face = "italic"),
+    axis.line=element_blank(),
+    text = element_text(size = 16), axis.text.x = element_text(size = 16, color = "black"),
+        axis.text.y = element_text(size = 14, color = "black"),
+        legend.position = "none",
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  scale_x_discrete(name="Day")+
+  scale_y_continuous(name ="16S rRNA gene copy number", expand = c(0,0), labels = scales::scientific, limits = c(0,480000))
+```
+
+#### S4G - Snodgrassella
+
+```{r}
+figgc_snod<-
+genecount_lother %>% 
+  filter(!(is.na(abundance))) %>% 
+  filter(!(samp_id == "M19D5")) %>% #sample much higher, better visiualization if excluded
+  filter(!(is.na(final_fecal_volume_mL))) %>% 
+  filter(!(day =="Gut")) %>% 
+  filter(taxa_name == "Snodgrassella") %>% 
+  group_by(samp_id, treatment, day, sc_id, taxa_name_p) %>% 
+   summarise(total_abun = sum(taxa_abunpermicrol)) %>% #multiple records assigned to one taxa, so sum them 
+  
+  ggplot(aes(x = day, y = total_abun))+
+    geom_boxplot(alpha=0.4, lwd=0.7,  fill = "#1b426d", color = "#1b426d")+
+  geom_jitter(shape=16, position=position_jitter(width=0.15, height=0), size=3,  fill = "#1b426d", color = "#1b426d")+
+  facet_grid(cols = vars(taxa_name_p))+
+
+  
+  theme_classic()+
+  theme(
+    panel.spacing = unit(.20, "lines"),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 1), 
+      strip.background = element_rect(
+     color="white", linewidth=1.5, linetype="solid"),
+     strip.text = element_text(colour = "black", size = 16, face = "italic"),
+    axis.line=element_blank(),
+    text = element_text(size = 16), axis.text.x = element_text(size = 16, color = "black"),
+        axis.text.y = element_text(size = 14, color = "black"),
+        legend.position = "none",
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  scale_x_discrete(name="Day")+
+  scale_y_continuous(name ="16S rRNA gene copy number", expand = c(0,0), labels = scales::scientific,limits=c(0,490000))
+```
+
+###S4 - Multipanel Figure
+
+```{r}
+figgc_fecalfinal<- 
+ggarrange(figgc_total + rremove("ylab"),
+        ggarrange(
+            figgc_bifido+ rremove("ylab") + rremove("xlab"),
+            figgc_bombilac+ rremove("ylab") + rremove("xlab"),
+            figgc_entero+ rremove("ylab") + rremove("xlab"), 
+            figgc_lacto+ rremove("ylab") + rremove("xlab"), 
+            figgc_Schmid+ rremove("ylab") + rremove("xlab"), 
+            figgc_snod+ rremove("ylab") + rremove("xlab"), 
+            labels = c("B", "C", "D", "E","F","G"),
+            
+            ncol = 3, nrow = 2,
+            widths = c(1,1),
+            align = "v"),
+      labels = c("A", ""),
+          ncol = 1,
+          nrow = 2,
+          heights = c(1,2.5)
+                   )
+
+annotate_figure(figgc_fecalfinal, left = text_grob("16S rRNA gene copy count", rot = 90, size=16),
+                    bottom = text_grob("Day",size=16))
+```
+
+##Total abundance comparisons
+
+###4B - Fecal vs. Gut 1 - Total Microbial Abundances
+
+Make gut dataset
+
+```{r}
+genecount_lother_gut <- genecount_lother %>% 
+  filter(day =="Gut")
+```
+
+Rename samples
+
+```{r}
+genecount_lother_gut$samp_id <- recode_factor(genecount_lother_gut$samp_id, M8FECAL = "M8Con_Fecal", M43FECAL = "M43Con_Fecal", M71FECAL = "M71Con_Fecal", M13FECAL = "M13CHT_Fecal", M48FECAL = "M48CHT_Fecal", M76FECAL = "M76CHT_Fecal", M8GUT = "M8Con_Gut", M43GUT = "M43Con_Gut", M71GUT = "M71Con_Gut", M13GUT = "M13CHT_Gut", M48GUT = "M48CHT_Gut", M76GUT = "M76CHT_Gut")
+```
+
+Split names into sample id and type
+
+```{r}
+genecount_lother_gut <- genecount_lother_gut %>% 
+    separate(samp_id, c("sample_id", "sample_type"),"_")
+```
+
+Reorder samples
+
+```{r}
+genecount_lother_gut$sample_id <- factor(genecount_lother_gut$sample_id, levels = c("M8Con", "M43Con", "M71Con", "M13CHT", "M48CHT", "M76CHT"))
+```
+
+
+```{r}
+figgc_fvg1total<-
+genecount_lother_gut %>% 
+  filter(taxa_name_p == "Bombilactobacillus") %>% #get one record of each microcolony's total abundance
+  ggplot(aes(x = sample_type, y = genecount_total, fill = sample_type, color = sample_type))+
+  geom_boxplot(alpha=0.4, lwd=0.7)+
+  geom_jitter(shape=16, position=position_jitter(width=0.15, height=0), size=3)+
+  theme_classic()+
+  theme(
+    panel.spacing = unit(.20, "lines"),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 1), 
+    strip.background = element_rect(
+     color="white", linewidth=1.5, linetype="solid"),
+     strip.text = element_text(colour = "black"),
+    axis.line=element_blank(),
+    text = element_text(size = 16), axis.text.x = element_text(size = 16, color = "black"),
+        axis.text.y = element_text(size = 16, color = "black"),
+        legend.position = "none",
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  scale_x_discrete(name="Sample Type")+
+  scale_y_continuous(name ="16S rRNA gene copy number", expand = c(0,0), limits = c(0,12000000000))+
+  scale_fill_met_d("Hiroshige", direction = -1)+
+  scale_color_met_d("Hiroshige", direction = -1)
+```
+
+###5B - Fecal vs. Gut 2 - Total Microbial Abundances
+
+Rename and reorder levels of day
+
+```{r}
+fvg2_qpcr_data$day <- recode_factor(fvg2_qpcr_data$day, D0 = "Day 0", Dm5 = "Day -5", D14 = "Day 14")
+
+fvg2_qpcr_data$day <- factor(fvg2_qpcr_data$day, levels = c("Day -5", "Day 0", "Day 14"))
+```
+
+Rename levels of sampletype
+
+```{r}
+fvg2_qpcr_data$sampletype <- recode_factor(fvg2_qpcr_data$sampletype, fecal = "Fecal", gut = "Gut")
+```
+
+
+```{r}
+figfvg2_16Scount<-
+fvg2_qpcr_data %>% 
+  ggplot(aes(x = sampletype, y = genecount_total, fill = sampletype, color = sampletype))+
+  geom_boxplot(alpha=0.4, lwd=0.7)+
+  geom_jitter(shape=16, position=position_jitter(width=0.15, height=0), size=3)+
+  theme_classic()+
+  theme(
+    panel.spacing = unit(.20, "lines"),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 1), 
+    strip.background = element_rect(
+     color="white", linewidth=1.5, linetype="solid"),
+     strip.text = element_text(colour = "black"),
+    axis.line=element_blank(),
+    text = element_text(size = 16), axis.text.x = element_text(size = 16, color = "black"),
+        axis.text.y = element_text(size = 16, color = "black"),
+        legend.position = "none",
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  scale_x_discrete(name="Sample Type")+
+  scale_y_continuous(name ="16S rRNA gene \ncopy number", expand = c(0,0), limits = c(0,3100000000))+
+  scale_fill_met_d("Hiroshige", direction = -1)+
+  scale_color_met_d("Hiroshige", direction = -1)
+```
+
+###5C - Fecal vs. Gut 2 - Beta Diversity Comparison
+
+```{r}
+fvg2_dist_pairvother_long <- fvg2_dist_pairvother %>% pivot_longer(cols = c('pair','other'),names_to = "typecomp", values_to = "dist")
+
+fvg2_dist_pairvother_long$typecomp <- recode_factor(fvg2_dist_pairvother_long$typecomp, pair = "Same Origin", other = "Different Origin")
+
+
+figfvg2_betadist<-
+fvg2_dist_pairvother_long %>% 
+  ggplot(aes(x = typecomp, y = dist, fill = typecomp, color = typecomp))+
+  geom_boxplot(alpha=0.4, lwd=0.7)+
+  geom_jitter(shape=16, position=position_jitter(width=0.15, height=0), size=3)+
+  theme_classic()+
+  theme(
+    panel.spacing = unit(.20, "lines"),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 1), 
+    strip.background = element_rect(
+     color="white", linewidth=1.5, linetype="solid"),
+     strip.text = element_text(colour = "black"),
+    axis.line=element_blank(),
+    text = element_text(size = 16), axis.text.x = element_text(size = 16, color = "black"),
+        axis.text.y = element_text(size = 16, color = "black"),
+        legend.position = "none",
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  scale_x_discrete(name="Type of Comparison")+
+  scale_y_continuous(name ="Bray-Curtis \nDissimilarty", expand = c(0,0), limits = c(0.07,0.72))+
+  scale_fill_met_d("Hiroshige", direction = -1)+
+  scale_color_met_d("Hiroshige", direction = -1)
+```
+
+
+
+##PCoAs - 16S gene copy counts
+
+###Fecal
+
+
+```{r}
+#perform pcoa
+qpcr_pcoabray <- pcoa(qpcr_pcoabray_matrix)
+
+#extract eigenvalues
+qpcr_pcoabray$values$Relative_eig[1:10]
+#[1] 0.25490630 0.21718596 
+
+#get vectors into its own tibble with samp_id for sample names
+qpcr_pcoabray_data <- qpcr_pcoabray$vectors %>% 
+  as_tibble(rownames = "samp_id")
+
+qpcr_pcoabray_data <- qpcr_pcoabray_data[,1:3]
+
+
+#join tibble with metadata
+qpcr_pcoabray_data <- left_join(qpcr_pcoabray_data, qpcr_metadata, by = "samp_id") 
+qpcr_pcoabray_data <- qpcr_pcoabray_data[,1:16]
+```
+
+####3A - Treatment and Day
+
+```{r}
+fec_pcoa1 <- 
+qpcr_pcoabray_data %>% 
+  ggplot(aes(x=`Axis.1`, y=`Axis.2`, color = `treatment`, shape = `day`)) +
+  geom_point(alpha=0.7, size=5) +
+  theme_classic()+
+  theme(text = element_text(size = 16), 
+        axis.text.x = element_text(size = 14, color = "black"),
+        axis.text.y = element_text(size = 12, color = "black"),
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)),
+        legend.title = element_text(size=12),
+        legend.text = element_text(size=11))+
+  labs(color = "Treatment", shape = "Day")+
+  scale_y_continuous(name = "PCo2 - 21.7%")+
+  scale_x_continuous(name = "PCo1 - 25.5%")+
+  scale_shape_manual(values = c(16,17,15,4,7))+
+  scale_color_met_d("Hiroshige", direction = -1)
+```
+
+####3B - Age and Source Colony
+
+```{r}
+fec_pcoa2 <- 
+qpcr_pcoabray_data %>% 
+  ggplot(aes(x=`Axis.1`, y=`Axis.2`, color = `sc_id`, shape = `age`)) +
+  geom_point(alpha=0.7, size=5) +
+  theme_classic()+
+  theme(text = element_text(size = 16), 
+        axis.text.x = element_text(size = 14, color = "black"),
+        axis.text.y = element_text(size = 12, color = "black"),
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)),
+        legend.title = element_text(size=12),
+        legend.text = element_text(size=11))+
+  labs(color = "Source Colony", shape = "Age")+
+  scale_y_continuous(name = "PCo2 - 22.0%")+
+  scale_x_continuous(name = "PCo1 - 25.4%")+
+  scale_color_met_d("Hiroshige", direction = -1)
+```
+
+
+####3 - Multi-panel Figure
+
+
+```{r}
+fec_pcoafinal<-
+  ggarrange(fec_pcoa1 + rremove("xlab"),
+          fec_pcoa2+ rremove("ylab") + rremove("xlab"),
+          labels = c("A", "B"),
+          label.x = 0.09,
+          label.y = 0.98,
+          ncol = 2, nrow = 1,
+          widths = c(1,1),
+          align = "v")
+
+annotate_figure(fec_pcoafinal,
+                    bottom = text_grob("PCo1 - 25.5%",size=16))
+```
+
+
+###Fecal vs. Gut 1
+
+####4C - Treatment
+
+```{r}
+fvg1_pcoa1 <- braycurt_fvg1$data$Vectors %>%
+  dplyr::select(SampleID, PC1, PC2) %>%
+  left_join(metadata_fvg1) %>%
+  ggplot(aes(x=PC1, y=PC2, color = `treatment`)) +
+  geom_point(alpha=0.8, size=5) +
+  stat_ellipse()+
+  theme_classic()+
+  theme(text = element_text(size = 16), 
+        legend.title = element_text(size = 13),
+        legend.text = element_text(size=13),
+        axis.text.x = element_text(size = 12, color = "black"),
+        axis.text.y = element_text(size = 12, color = "black"),
+        axis.title.y = element_text(size = 14, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 14, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+    labs(color = "Treatment")+
+  scale_y_continuous(name = "PCo2 - 27.4%")+
+  scale_x_continuous(name = "PCo1 - 49.0%")+
+  scale_color_met_d("Hiroshige", direction = -1)
+```
+
+####4D - Sample Type
+
+```{r}
+#rename sample type levels
+
+metadata_fvg1$sample_type <- recode_factor(metadata_fvg1$sample_type, fecal = "Fecal", gut = "Gut")
+
+fvg1_pcoa2<-braycurt_fvg1$data$Vectors %>%
+  dplyr::select(SampleID, PC1, PC2) %>%
+  left_join(metadata_fvg1) %>%
+  ggplot(aes(x=PC1, y=PC2, color = `sample_type`)) +
+  geom_point(alpha=0.8, size=5) +
+  stat_ellipse()+
+  theme_classic()+
+  theme(text = element_text(size = 16), 
+         legend.title = element_text(size = 13),
+        legend.text = element_text(size=13),
+        axis.text.x = element_text(size = 12, color = "black"),
+        axis.text.y = element_text(size = 12, color = "black"),
+        axis.title.y = element_text(size = 14, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 14, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  labs(color = "Sample Type")+
+  scale_y_continuous(name = "PCo2 - 27.4%")+
+  scale_x_continuous(name = "PCo1 - 49.0%")+
+  scale_color_met_d("Hiroshige", direction = -1)
+```
+
+####4E - Source Colony ID
+
+```{r}
+fvg1_pcoa3 <- 
+braycurt_fvg1$data$Vectors %>%
+  dplyr::select(SampleID, PC1, PC2) %>%
+  left_join(metadata_fvg1) %>%
+  ggplot(aes(x=PC1, y=PC2, color = `sc_id`)) +
+  geom_point(alpha=0.8, size=5) +
+  stat_ellipse()+
+  theme_classic()+
+  theme(text = element_text(size = 16), 
+         legend.title = element_text(size = 13),
+        legend.text = element_text(size=13),
+        axis.text.x = element_text(size = 12, color = "black"),
+        axis.text.y = element_text(size = 12, color = "black"),
+        axis.title.y = element_text(size = 14, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 14, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  labs(color = "Source Colony")+
+  scale_y_continuous(name = "PCo2 - 27.4%")+
+  scale_x_continuous(name = "PCo1 - 49.0%")+
+  scale_color_met_d("Hiroshige", direction = -1)
+```
+
+####4 - Multipanel Figure
+
+```{r}
+#fvg1_pcoafinal<-
+ggarrange(ggarrange(fvg1_relabun, figgc_fvg1total,
+                    labels = c("A","B"),
+                    font.label = list(size = 16),
+                    ncol = 2, nrow = 1,
+                    widths = c(2,1)),
+          ggarrange(fvg1_pcoa1, 
+                    fvg1_pcoa2 + rremove("ylab"), 
+                    fvg1_pcoa3 + rremove("ylab"),
+            labels = c("C", "D", "E"),
+            legend = "bottom",
+            font.label = list(size = 16),
+            ncol = 3, nrow = 1,
+            widths = c(1,1,1),
+            align = "hv"),
+          ncol=1, nrow=2)
+         
+          
+
+
+          
+```
+
+
+###Fecal vs. Gut 2
+
+```{r}
+metadata_fvg2$day<-factor(metadata_fvg2$day, levels = c("Dm5", "D0", "D14"))
+
+metadata_fvg2$day<-recode_factor(metadata_fvg2$day, Dm5 = "-5", D0 = "0", D14 = "14")
+
+metadata_fvg2$sample_type<-recode_factor(metadata_fvg2$sample_type, fecal = "Fecal", gut = "Gut")
+```
+
+####5D - Day
+
+```{r}
+fvg2_pcoa1<-
+  braycurt_fvg2$data$Vectors %>%
+  dplyr::select(SampleID, PC1, PC2) %>%
+  left_join(metadata_fvg2) %>%
+  ggplot(aes(x=PC1, y=PC2, color = `day`)) +
+  geom_point(alpha=0.7, size=5) +
+  stat_ellipse()+
+  theme_classic()+
+  theme(text = element_text(size = 16), 
+        legend.position="bottom",
+        legend.text = element_text(size = 12),
+        legend.title = element_text(size = 12),
+        axis.text.x = element_text(size = 14, color = "black"),
+        axis.text.y = element_text(size = 14, color = "black"),
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  labs(color = "Day")+
+  scale_y_continuous(name = "PCo2 - 21.1%")+
+  scale_x_continuous(name = "PCo1 - 34.3%")+
+  scale_color_met_d("Hiroshige", direction = -1
+                    )
+```
+
+####5E - Sample Type
+
+```{r}
+fvg2_pcoa2<-
+  braycurt_fvg2$data$Vectors %>%
+  dplyr::select(SampleID, PC1, PC2) %>%
+  left_join(metadata_fvg2) %>%
+  ggplot(aes(x=PC1, y=PC2, color = `sample_type`)) +
+  geom_point(alpha=0.7, size=5) +
+  stat_ellipse()+
+  theme_classic()+
+  theme(text = element_text(size = 16), 
+        legend.position="bottom",
+        legend.text = element_text(size = 12),
+        legend.title = element_text(size = 12),
+        axis.text.x = element_text(size = 14, color = "black"),
+        axis.text.y = element_text(size = 14, color = "black"),
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  labs(color = "Sample Type")+
+  scale_y_continuous(name = "PCo2 - 21.1%")+
+  scale_x_continuous(name = "PCo1 - 34.3%")+
+  scale_color_met_d("Hiroshige", direction = -1)
+```
+
+####5F - Source Colony ID
+
+```{r}
+fvg2_pcoa3<-
+  braycurt_fvg2$data$Vectors %>%
+  dplyr::select(SampleID, PC1, PC2) %>%
+  left_join(metadata_fvg2) %>%
+  ggplot(aes(x=PC1, y=PC2, color = `sc_id`)) +
+  geom_point(alpha=0.7, size=5) +
+  stat_ellipse()+
+  theme_classic()+
+  theme(text = element_text(size = 16), 
+        legend.position="bottom",
+        legend.text = element_text(size = 12),
+        legend.title = element_text(size = 12),
+        axis.text.x = element_text(size = 14, color = "black"),
+        axis.text.y = element_text(size = 14, color = "black"),
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  labs(color = "Source Colony")+
+  scale_y_continuous(name = "PCo2 - 21.1%")+
+  scale_x_continuous(name = "PCo1 - 34.3%")+
+  scale_color_met_d("Hiroshige", direction = -1)
+```
+
+####5 - Multipanel Figure
+
+```{r}
+#fvg2_pcoafinal<-
+              ggarrange(fvg2_relabun,
+                          ggarrange(figfvg2_16Scount, 
+                                    figfvg2_betadist,
+                                    labels = c("B","C"),
+                                    ncol=2,
+                                    nrow=1),
+                          ggarrange(fvg2_pcoa1,
+                                    fvg2_pcoa2 + rremove("ylab"),
+                                    fvg2_pcoa3 + rremove("ylab"),
+                                    labels = c("D","E","F"),
+                                    ncol=3,
+                                    nrow=1),
+                          labels = c("A","",""),
+                          nrow=3,
+                          ncol=1,
+                          heights=c(1.5,1,1)
+                              )
+  
+```
+
+
+##6 - Fecal vs. Gut 2 - Gut and Fecal 16S Correlations
+
+need figure for the t-test results, probably into supplemental, maybe?
+
+```{r}
+#Bifidobacterium
+
+fvg2_qpcr_data_Bifido <- fvg2_qpcr_data %>% 
+  select(sampletype:mcid, Bifidobacterium)
+
+fvg2_qpcr_data_Bifido_wide <- fvg2_qpcr_data_Bifido  %>% 
+  pivot_wider(names_from = sampletype, values_from = Bifidobacterium)
+
+fvg2_qpcr_data_Bifido_wide <- fvg2_qpcr_data_Bifido_wide %>% 
+  mutate(taxa = "Bifidobacterium")
+
+fvg2_qpcr_data_Bifido_wide <- 
+fvg2_qpcr_data_Bifido_wide %>% 
+  mutate(log_fecal = log10(Fecal)) %>% 
+  mutate(log_gut = log10(Gut))
+
+figcorrel_bifido<-
+  fvg2_qpcr_data_Bifido_wide %>% 
+  ggplot(aes(x=log_gut, y=log_fecal)) +
+  #geom_abline(lty = 2, color = "#f08944")+
+  geom_smooth(method = lm, fill = "#f08944", color = "#f08944", fullrange=TRUE)+
+  geom_point(color = "#f08944")+
+  facet_grid(cols = vars(taxa))+
+
+  theme_classic()+
+  theme(
+    panel.spacing = unit(.20, "lines"),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 1), 
+    strip.background = element_rect(
+     color="white", linewidth=1.5, linetype="solid"),
+     strip.text = element_text(colour = "black", size = 16, face = "italic"),
+    axis.line=element_blank(),
+    text = element_text(size = 16), 
+    axis.text.x = element_text(size = 14, color = "black"),
+        axis.text.y = element_text(size = 14, color = "black"),
+        legend.position = "none",
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  scale_x_continuous(name=expression(~Log[10]~ "gut 16S rRNA gene copy count"), expand=c(0,0), limits = c(6.6,8.2))+
+  scale_y_continuous(name=expression(atop(~Log[10]~ "fecal 16S rRNA", "gene copy count")), expand = c(0,0), limits = c(4.5,7.9))
+
+#Bombilactobacillus
+
+fvg2_qpcr_data_Bombi <- fvg2_qpcr_data %>% 
+  select(sampletype:mcid, Bombilactobacillus)
+
+fvg2_qpcr_data_Bombi_wide <- fvg2_qpcr_data_Bombi %>% 
+  pivot_wider(names_from = sampletype, values_from = Bombilactobacillus)
+
+fvg2_qpcr_data_Bombi_wide <- fvg2_qpcr_data_Bombi_wide %>% 
+  mutate(taxa = "Bombilactobacillus")
+
+fvg2_qpcr_data_Bombi_wide <- 
+fvg2_qpcr_data_Bombi_wide %>% 
+  mutate(log_fecal = log10(Fecal)) %>% 
+  mutate(log_gut = log10(Gut))
+
+figcorrel_bombi<-
+fvg2_qpcr_data_Bombi_wide %>% 
+  ggplot(aes(x=log_gut, y=log_fecal)) +
+  geom_smooth(method = lm, fill = "#f9ab58", color = "#f9ab58", fullrange = TRUE)+
+  geom_point(color = "#f9ab58")+
+  facet_grid(cols = vars(taxa))+
+
+  theme_classic()+
+  theme(
+    panel.spacing = unit(.20, "lines"),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 1), 
+    strip.background = element_rect(
+     color="white", linewidth=1.5, linetype="solid"),
+     strip.text = element_text(colour = "black", size = 16, face = "italic"),
+    axis.line=element_blank(),
+    text = element_text(size = 16), 
+    axis.text.x = element_text(size = 14, color = "black"),
+        axis.text.y = element_text(size = 14, color = "black"),
+        legend.position = "none",
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  scale_x_continuous(name=expression(~Log[10]~ "gut 16S rRNA gene copy count"), expand=c(0,0), limits=c(6.5,8.2))+
+  scale_y_continuous(name=expression(atop(~Log[10]~ "fecal 16S rRNA", "gene copy count")), expand = c(0,0), limits=c(4.2,8.1))
+
+
+#Bombiscardovia
+
+fvg2_qpcr_data_Bombiscar <- fvg2_qpcr_data %>% 
+  select(sampletype:mcid, Bombiscardovia)
+
+fvg2_qpcr_data_Bombiscar_wide <- fvg2_qpcr_data_Bombiscar  %>% 
+  pivot_wider(names_from = sampletype, values_from = Bombiscardovia)
+
+fvg2_qpcr_data_Bombiscar_wide <- fvg2_qpcr_data_Bombiscar_wide %>% 
+  mutate(taxa = "Bombiscardovia")
+
+fvg2_qpcr_data_Bombiscar_wide <- 
+fvg2_qpcr_data_Bombiscar_wide %>% 
+  mutate(log_fecal = log10(Fecal)) %>% 
+  mutate(log_gut = log10(Gut))
+
+figcorrel_bombiscar<-
+fvg2_qpcr_data_Bombiscar_wide %>% 
+  ggplot(aes(x=log_gut, y=log_fecal)) +
+  geom_smooth(method = lm, fill = "#fed16c", color = "#fed16c", fullrange=TRUE)+
+  geom_point(color = "#fed16c")+
+  facet_grid(cols = vars(taxa))+
+
+  theme_classic()+
+  theme(
+    panel.spacing = unit(.20, "lines"),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 1), 
+    strip.background = element_rect(
+     color="white", linewidth=1.5, linetype="solid"),
+     strip.text = element_text(colour = "black", size = 16, face = "italic"),
+    axis.line=element_blank(),
+    text = element_text(size = 16), 
+    axis.text.x = element_text(size = 14, color = "black"),
+        axis.text.y = element_text(size = 14, color = "black"),
+        legend.position = "none",
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  scale_x_continuous(name=expression(~Log[10]~ "gut 16S rRNA gene copy count"), expand=c(0,0), limits = c(6.3,8.1))+
+  scale_y_continuous(name=expression(atop(~Log[10]~ "fecal 16S rRNA", "gene copy count")), expand = c(0,0), limits = c(4.3,8))
+
+#Lactobacillus
+
+fvg2_qpcr_data_Lacto <- fvg2_qpcr_data %>% 
+  select(sampletype:mcid, Lactobacillus)
+
+fvg2_qpcr_data_Lacto_wide <- fvg2_qpcr_data_Lacto %>% 
+  pivot_wider(names_from = sampletype, values_from = Lactobacillus)
+
+fvg2_qpcr_data_Lacto_wide <- fvg2_qpcr_data_Lacto_wide %>% 
+  mutate(taxa = "Lactobacillus")
+
+fvg2_qpcr_data_Lacto_wide <- 
+fvg2_qpcr_data_Lacto_wide %>% 
+  mutate(log_fecal = log10(Fecal)) %>% 
+  mutate(log_gut = log10(Gut))
+
+figcorrel_lacto<-
+fvg2_qpcr_data_Lacto_wide %>% 
+  ggplot(aes(x=log_gut, y=log_fecal)) +
+   geom_smooth(method = lm, fill = "#4e8dae", color = "#4e8dae", fullrange=TRUE)+
+  geom_point(color = "#4e8dae")+
+  facet_grid(cols = vars(taxa))+
+
+  theme_classic()+
+  theme(
+    panel.spacing = unit(.20, "lines"),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 1), 
+    strip.background = element_rect(
+     color="white", linewidth=1.5, linetype="solid"),
+     strip.text = element_text(colour = "black", size = 16, face = "italic"),
+    axis.line=element_blank(),
+    text = element_text(size = 16), 
+    axis.text.x = element_text(size = 14, color = "black"),
+        axis.text.y = element_text(size = 14, color = "black"),
+        legend.position = "none",
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  scale_x_continuous(name=expression(~Log[10]~ "gut 16S rRNA gene copy count"), expand=c(0,0), limits=c(6.7,8.2))+
+  scale_y_continuous(name=expression(atop(~Log[10]~ "fecal 16S rRNA", "gene copy count")), expand = c(0,0), limits = c(4.8,8.5))
+
+#Schmidhempelia
+
+fvg2_qpcr_data_Schmid <- fvg2_qpcr_data %>% 
+  select(sampletype:mcid, Schmidhempelia)
+
+fvg2_qpcr_data_Schmid_wide <- fvg2_qpcr_data_Schmid  %>% 
+  pivot_wider(names_from = sampletype, values_from = Schmidhempelia)
+
+fvg2_qpcr_data_Schmid_wide <- fvg2_qpcr_data_Schmid_wide %>% 
+  mutate(taxa = "Schmidhempelia")
+
+fvg2_qpcr_data_Schmid_wide <- 
+fvg2_qpcr_data_Schmid_wide %>% 
+  mutate(log_fecal = log10(Fecal)) %>% 
+  mutate(log_gut = log10(Gut))
+
+figcorrel_schmid<-
+  fvg2_qpcr_data_Schmid_wide %>% 
+  ggplot(aes(x=log_gut, y=log_fecal)) +
+  geom_smooth(method=lm,fill = "#336695", color = "#336695", fullrange=TRUE)+
+  geom_point(color = "#336695")+
+  facet_grid(cols = vars(taxa))+
+
+  theme_classic()+
+  theme(
+    panel.spacing = unit(.20, "lines"),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 1), 
+    strip.background = element_rect(
+     color="white", linewidth=1.5, linetype="solid"),
+     strip.text = element_text(colour = "black", size = 16, face = "italic"),
+    axis.line=element_blank(),
+    text = element_text(size = 16), 
+    axis.text.x = element_text(size = 14, color = "black"),
+        axis.text.y = element_text(size = 14, color = "black"),
+        legend.position = "none",
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  scale_x_continuous(name=expression(~Log[10]~ "gut 16S rRNA gene copy count"), expand=c(0,0), limits = c(6.8, 8.2))+
+  scale_y_continuous(name=expression(atop(~Log[10]~ "fecal 16S rRNA", "gene copy count")), expand = c(0,0), limits = c(4.9, 8.5))
+
+
+#Snograssella
+
+fvg2_qpcr_data_Snod <- fvg2_qpcr_data %>% 
+  select(sampletype:mcid, Snodgrassella)
+
+fvg2_qpcr_data_Snod_wide <- fvg2_qpcr_data_Snod  %>% 
+  pivot_wider(names_from = sampletype, values_from = Snodgrassella)
+
+fvg2_qpcr_data_Snod_wide <- fvg2_qpcr_data_Snod_wide %>% 
+  mutate(taxa = "Snodgrassella")
+
+fvg2_qpcr_data_Snod_wide <- 
+fvg2_qpcr_data_Snod_wide %>% 
+  mutate(log_fecal = log10(Fecal)) %>% 
+  mutate(log_gut = log10(Gut))
+
+figcorrel_snod<-
+fvg2_qpcr_data_Snod_wide %>% 
+  ggplot(aes(x=log_gut, y=log_fecal)) +
+   geom_smooth(method=lm,fill = "#1b426d", color = "#1b426d", fullrange=TRUE)+
+  geom_point(color = "#1b426d")+
+  facet_grid(cols = vars(taxa))+
+
+  theme_classic()+
+  theme(
+    panel.spacing = unit(.20, "lines"),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 1), 
+    strip.background = element_rect(
+     color="white", linewidth=1.5, linetype="solid"),
+     strip.text = element_text(colour = "black", size = 16, face = "italic"),
+    axis.line=element_blank(),
+    text = element_text(size = 16), 
+    axis.text.x = element_text(size = 14, color = "black"),
+        axis.text.y = element_text(size = 14, color = "black"),
+        legend.position = "none",
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  scale_x_continuous(name=expression(~Log[10]~ "gut 16S rRNA gene copy count"), expand=c(0,0), limits=c(7.0, 8.5))+
+  scale_y_continuous(name=expression(atop(~Log[10]~ "fecal 16S rRNA", "gene copy count")), expand = c(0,0), limits=c(4.7,8.5))
+
+
+```
+
+###Multipanel Figure
+
+```{r}
+ggarrange(figcorrel_bifido + rremove("xlab"), 
+          figcorrel_bombi + rremove("xlab") + rremove("ylab"), 
+          figcorrel_bombiscar + rremove("xlab"),
+          figcorrel_lacto + rremove("ylab") + rremove("xlab"), 
+          figcorrel_schmid, 
+          figcorrel_snod+ rremove("ylab"),
+          labels = c("A","B","C","D","E","F"),
+          ncol = 2,
+          nrow = 3,
+          align = "hv")
+```
+
+
+#Analysis
+
+##Alpha Diversity
+
+###Fecal Models
+
+```{r}
+fecal_qpcr_alphadiv1 <- lmer(value ~ treatment*day*age + (1|sc_id/mc_id), data = fecal_alphadiv_qpcr_data)
+
+anova(fecal_qpcr_alphadiv1)
+
+fecal_qpcr_alphadiv2 <- lmer(value ~ treatment + day + age + (1|sc_id/mc_id), data = fecal_alphadiv_qpcr_data)
+
+anova(fecal_qpcr_alphadiv2)
+
+check_model(fecal_qpcr_alphadiv2)
+
+emmeans(fecal_qpcr_alphadiv2, specs = pairwise ~ day)
+```
+
+###Fecal v. Gut 2
+
+```{r}
+fvg2_alpha1<-lmer(shannon_entropy ~ day*sample_type + sc_id + (1|mc_id), data = metadata_fvg2_shannon)
+
+anova(fvg2_alpha1)
+
+fvg2_alpha2<-lmer(shannon_entropy ~ day+sample_type + sc_id + (1|mc_id), data = metadata_fvg2_shannon)
+
+anova(fvg2_alpha2)
+
+check_model(fvg2_alpha2)
+
+fvg2_alpha2_daymeans = emmeans(fvg2_alpha2, specs = ~ day)
+fvg2_alpha2_daymeans
+contrast(fvg2_alpha2_daymeans, method = "pairwise")
+```
+
+
+##Fecal Samples - Individual Taxa
+
+###Total 16S copy counts
+
+```{r}
+Total_modeldata <- genecount_lother %>% 
+  filter(!(is.na(abundance))) %>% 
+  filter(!(is.na(final_fecal_volume_mL))) %>% 
+  filter(!(day =="Gut")) %>% 
+  group_by(samp_id, treatment, day, age, sc_id, mc_id) %>% 
+  summarize(total = sum(taxa_abunpermicrol))
+
+Total_model1 <- lmer(total ~ treatment*day + age + (1|sc_id/mc_id), data = Total_modeldata)
+
+anova(Total_model1)
+
+Total_model2 <- lmer(total ~ treatment + day + age + (1|sc_id/mc_id), data = Total_modeldata)
+
+anova(Total_model2)
+
+check_model(Total_model2)
+
+Total_model2_means = emmeans(Total_model2, specs = pairwise ~ day)
+Total_model2_means
+```
+
+###Bifidobacterium
+
+```{r}
+Bifido_modeldata <- genecount_lother %>% 
+  filter(!(is.na(abundance))) %>% 
+  filter(!(is.na(final_fecal_volume_mL))) %>% 
+  filter(!(day =="Gut")) %>% 
+  filter(taxa_name == "Bifidobacterium") %>% 
+  group_by(samp_id, treatment, day, age, sc_id, mc_id) %>% 
+  summarize(total = sum(taxa_abunpermicrol))
+
+Bifido_model1 <- lmer(total ~ treatment*day + age + (1|sc_id/mc_id), data = Bifido_modeldata)
+
+anova(Bifido_model1)
+
+Bifido_model2 <- lmer(total ~ treatment + day + age + (1|sc_id/mc_id), data = Bifido_modeldata)
+
+anova(Bifido_model2)
+
+
+check_model(Bifido_model2)
+
+```
+
+
+###Bombilactobacillus
+
+```{r}
+Bombi_modeldata <- genecount_lother %>% 
+  filter(!(is.na(abundance))) %>% 
+  filter(!(is.na(final_fecal_volume_mL))) %>% 
+  filter(!(day =="Gut")) %>% 
+  filter(taxa_name == "Bombilactobacillus") %>% 
+  group_by(samp_id, treatment, day, age, sc_id, mc_id) %>% 
+  summarize(total = sum(taxa_abunpermicrol))
+
+Bombi_model1 <- lmer(total ~ treatment*day + age + (1|sc_id/mc_id), data = Bombi_modeldata)
+
+anova(Bombi_model1)
+
+Bombi_model2 <- lmer(total ~ treatment + day + age + (1|sc_id/mc_id), data = Bombi_modeldata)
+
+anova(Bombi_model2)
+
+check_model(Bombi_model2)
+
+Bombi_model2_means = emmeans(Bombi_model2, specs = pairwise ~ day)
+Bombi_model2_means
+
+```
+
+
+###Lactobacillus
+
+```{r}
+Lactobac_modeldata <- genecount_lother %>% 
+  filter(!(is.na(abundance))) %>% 
+  filter(!(is.na(final_fecal_volume_mL))) %>% 
+  filter(!(day =="Gut")) %>% 
+  filter(taxa_name == "Lactobacillus") %>% 
+  group_by(samp_id, treatment, day, age, sc_id, mc_id) %>% 
+  summarize(total = sum(taxa_abunpermicrol))
+
+Lactobac_model1 <- lmer(total ~ treatment*day + age + (1|sc_id/mc_id), data = Lactobac_modeldata)
+
+anova(Lactobac_model1)
+
+Lactobac_model2 <- lmer(total ~ treatment + day + age + (1|sc_id/mc_id), data = Lactobac_modeldata)
+
+anova(Lactobac_model2)
+
+
+check_model(Lactobac_model2)
+
+```
+
+###Schmidhempelia
+
+```{r}
+Schmid_modeldata <- genecount_lother %>% 
+  filter(!(is.na(abundance))) %>% 
+  filter(!(is.na(final_fecal_volume_mL))) %>% 
+  filter(!(day =="Gut")) %>% 
+  filter(taxa_name == "Schmidhempelia") %>% 
+  group_by(samp_id, treatment, day, age, sc_id, mc_id) %>% 
+  summarize(total = sum(taxa_abunpermicrol))
+
+Schmid_model1 <- lmer(total ~ treatment*day + age + (1|sc_id/mc_id), data = Schmid_modeldata)
+
+anova(Schmid_model1)
+
+Schmid_model2 <- lmer(total ~ treatment + day + age + (1|sc_id/mc_id), data = Schmid_modeldata)
+
+anova(Schmid_model2)
+
+check_model(Schmid_model2)
+```
+
+###Snodgrassella
+
+```{r}
+Snod_modeldata <- genecount_lother %>% 
+  filter(!(is.na(abundance))) %>% 
+  filter(!(is.na(final_fecal_volume_mL))) %>% 
+  filter(!(day =="Gut")) %>% 
+  filter(taxa_name == "Snodgrassella") %>% 
+  group_by(samp_id, treatment, day, age, sc_id, mc_id) %>% 
+  summarize(total = sum(taxa_abunpermicrol))
+
+Snod_model1 <- lmer(total ~ treatment*day + age + (1|sc_id/mc_id), data = Snod_modeldata)
+
+anova(Snod_model1)
+
+Snod_model2 <- lmer(total ~ treatment + day + age + (1|sc_id/mc_id), data = Snod_modeldata)
+
+anova(Snod_model2)
+
+check_model(Snod_model2)
+```
+
+###Enterobacteriaceae
+
+```{r}
+Entero_modeldata <- genecount_lother %>% 
+  filter(!(is.na(abundance))) %>% 
+  filter(!(is.na(final_fecal_volume_mL))) %>% 
+  filter(!(day =="Gut")) %>% 
+  filter(taxa_name_p == "Enterobacteriaceae") %>% 
+  group_by(samp_id, treatment, day, age, sc_id, mc_id) %>% 
+  summarize(total = sum(taxa_abunpermicrol))
+
+Entero_model1 <- lmer(total ~ treatment*day + age + (1|sc_id/mc_id), data = Entero_modeldata)
+
+anova(Entero_model1)
+
+Entero_model2 <- lmer(total ~ treatment + day + age + (1|sc_id/mc_id), data = Entero_modeldata)
+
+anova(Entero_model2)
+
+
+check_model(Entero_model2)
+
+Entero_model2_means = emmeans(Entero_model2, specs = pairwise ~ day)
+Entero_model2_means
+```
+
+##Fecal vs. Gut - 16S copy counts
+
+###Fecal vs Gut 1
+
+```{r}
+fvg1_totalabundance <- genecount_lother_gut %>% 
+  filter(taxa_name_p == "Bombilactobacillus") #get one record of each microcolony's total abundance
+
+fvg1_totalabundance_model1 <- lmer(genecount_total ~ treatment*sample_type + sc_id + (1|mc_id), data = fvg1_totalabundance)
+
+anova(fvg1_totalabundance_model1)
+
+fvg1_totalabundance_model2 <- lmer(genecount_total ~ treatment + sample_type + sc_id + (1|mc_id), data = fvg1_totalabundance)
+
+anova(fvg1_totalabundance_model2)
+
+check_model(fvg1_totalabundance_model2)
+```
+
+###Fecal vs Gut 2
+
+
+```{r}
+fvg2_totalabundance_model1 <- lmer(genecount_total ~ day*sampletype + scid +(1|mcid), data = fvg2_qpcr_data)
+
+anova(fvg2_totalabundance_model1)
+
+fvg2_totalabundance_model2 <- lmer(genecount_total ~ day+sampletype + scid + (1|mcid), data = fvg2_qpcr_data)
+
+anova(fvg2_totalabundance_model2)
+
+check_model(fvg2_totalabundance_model2)
+```
+
+
+
+##Multivariate Models
+
+###Fecal Models - 16S rRNA gene copy number
+
+Model 1: treatment:day+age
+
+```{r}
+fecalqpcr_adonis1 <- adonis2(qpcr_pcoabray_matrix ~ day:treatment+treatment+day+age, 
+                         qpcr_metadata_adonis, 
+                         permutations = 9999, 
+                         by = "margin", 
+                         strata = qpcr_metadata_adonis$sc_id)
+
+fecalqpcr_adonis1
+
+fecalqpcr_adonis1_terms <- adonis2(qpcr_pcoabray_matrix ~ day:treatment+treatment+day+age, 
+                         qpcr_metadata_adonis, 
+                         permutations = 9999, 
+                         by = "terms", 
+                         strata = qpcr_metadata_adonis$sc_id)
+
+fecalqpcr_adonis1_terms
+```
+
+Model 2: treatment+day+age
+
+```{r}
+fecalqpcr_adonis2 <- adonis2(qpcr_pcoabray_matrix ~ treatment+day+age, 
+                         qpcr_metadata_adonis, 
+                         permutations = 9999, 
+                         by = "margin", 
+                         strata = qpcr_metadata_adonis$sc_id)
+
+fecalqpcr_adonis2
+```
+
+Model 3: treatment + day + age + source colony
+
+```{r}
+fecalqpcr_adonis3 <- adonis2(qpcr_pcoabray_matrix ~ treatment + day + age + sc_id,
+                         qpcr_metadata_adonis, 
+                         permutations = 9999, 
+                         by = "margin")
+                         
+
+fecalqpcr_adonis3
+```
+
+####Tests for Homogeneity
+
+```{r}
+#DAY
+
+fecalqpcr_betaday_med <- betadisper(qpcr_pcoabray_matrix, qpcr_metadata_adonis$day, type = "median")
+
+permutest(fecalqpcr_betaday_med, permutations = 9999)
+
+
+TukeyHSD(fecalqpcr_betaday_med)
+
+#AGE
+
+fecalqpcr_betaage_med <- betadisper(qpcr_pcoabray_matrix, qpcr_metadata_adonis$age, type = "median")
+
+permutest(fecalqpcr_betaage_med, permutations = 9999)
+
+TukeyHSD(fecalqpcr_betaage_med)
+
+
+#SOURCE COLONY
+
+fecalqpcr_betascid_med <- betadisper(qpcr_pcoabray_matrix, qpcr_metadata_adonis$sc_id, type = "median")
+
+permutest(fecalqpcr_betascid_med, permutations = 9999)
+
+```
+
+####Post-hoc Tests
+
+```{r}
+pairwise.adonis2(qpcr_pcoabray_matrix ~ day + age, 
+                 qpcr_metadata_adonis, 
+                 strata = "sc_id",
+                 nperm = 9999,
+                 p_adjust_m = "bonferroni")
+
+pairwise.adonis2(qpcr_pcoabray_matrix ~ scid + day + age, 
+                 qpcr_metadata_adonis, 
+                 nperm = 9999,
+                 p_adjust_m = "bonferroni")
+
+```
+
+
+
+###FvG1 Models - relative abundance
+
+Model 1: treatment + sample type + microcolony of origin + source colony
+
+```{r}
+fvg_adonis1_0 <- adonis2(braycurtdm_fvg1$data ~ sample_type*treatment+sc_id+sampleid_rev, 
+                         metadata_fvg1, 
+                         permutations = 9999, 
+                         by = "terms")
+
+fvg_adonis1_0
+
+fvg_adonis1_1 <- adonis2(braycurtdm_fvg1$data ~ sample_type+treatment+sc_id+sampleid_rev, 
+                         metadata_fvg1, 
+                         permutations = 9999, 
+                         by = "terms")
+
+fvg_adonis1_1
+
+fvg_adonis1_2 <- adonis2(braycurtdm_fvg1$data ~ sampleid_rev+sc_id+sample_type+treatment, 
+                         metadata_fvg1, 
+                         permutations = 9999, 
+                         by = "terms")
+
+fvg_adonis1_2
+
+fvg_adonis1_3 <- adonis2(braycurtdm_fvg1$data ~ sc_id+sample_type+treatment+sampleid_rev, 
+                         metadata_fvg1, 
+                         permutations = 9999, 
+                         by = "terms")
+
+fvg_adonis1_3
+
+
+fvg_adonis1_4 <- adonis2(braycurtdm_fvg1$data ~ treatment+sampleid_rev+sc_id+sample_type, 
+                         metadata_fvg1, 
+                         permutations = 9999, 
+                         by = "terms")
+
+fvg_adonis1_4
+
+```
+
+For models where the output includes all four terms, sc_id is consistently significant and in all models sample_type is consistently significant.
+
+
+####Tests for homogeneity of groups dispersions
+
+```{r}
+#SAMPLE TYPE
+
+betasamptype_med <- betadisper(braycurtdm_fvg1$data, metadata_fvg1$sample_type, type = "median")
+
+
+permutest(betasamptype_med, permutations = 9999)
+
+
+#SOURCE COLONY
+
+betascid_med <- betadisper(braycurtdm_fvg1$data, metadata_fvg1$sc_id, type = "median")
+
+
+permutest(betascid_med, permutations = 9999)
+
+```
+
+####Post-hoc Tests 
+
+```{r}
+pairwise.adonis2(braycurtdm_fvg1$data ~ sample_type + sc_id, 
+                 metadata_fvg1, 
+                 nperm = 9999,
+                 p_adjust_m = "bonferroni")
+
+
+pairwise.adonis2(braycurtdm_fvg1$data ~ sc_id + sample_type, 
+                 metadata_fvg1, 
+                 nperm = 9999,
+                 p_adjust_m = "bonferroni")
+   
+```
+
+
+###FvG2 Models - relative abundance
+
+Model 1: day*sample type + source colony
+
+```{r}
+fvg2_adonis1 <- adonis2(braycurtdm_fvg2$data ~ day*sample_type + sc_id, 
+                         metadata_fvg2, 
+                         permutations = 9999, 
+                         by = "margin")
+
+```
+
+
+Model 2: day + sample type + source colony
+
+```{r}
+fvg2_adonis2 <- adonis2(braycurtdm_fvg2$data ~ sc_id + day + sample_type + mc_id, 
+                         metadata_fvg2, 
+                         permutations = 9999, 
+                         by = "terms")
+
+fvg2_adonis2
+
+```
+
+####Tests for homogeneity of groups dispersions
+
+```{r}
+#DAY
+
+fvg2_betaday_med <- betadisper(braycurtdm_fvg2$data, metadata_fvg2$day, type = "median")
+
+
+fvg2_betaday_cent <- betadisper(braycurtdm_fvg2$data, metadata_fvg2$day, type = "centroid")
+
+permutest(fvg2_betaday_med, permutations = 9999)
+
+
+permutest(fvg2_betaday_cent, permutations = 9999)
+
+#SAMPLE TYPE
+
+fvg2_betasampt_med <- betadisper(braycurtdm_fvg2$data, metadata_fvg2$sample_type, type = "median")
+
+
+fvg2_betasampt_cent <- betadisper(braycurtdm_fvg2$data, metadata_fvg2$sample_type, type = "centroid")
+
+
+
+permutest(fvg2_betasampt_med, permutations = 9999)
+  
+
+permutest(fvg2_betasampt_cent, permutations = 9999)
+                     
+
+
+#SOURCE COLONY ID
+
+fvg2_betascid_med <- betadisper(braycurtdm_fvg2$data, metadata_fvg2$sc_id, type = "median")
+
+
+fvg2_betascid_cent <- betadisper(braycurtdm_fvg2$data, metadata_fvg2$sc_id, type = "centroid")
+
+
+permutest(fvg2_betascid_med, permutations = 9999)
+
+
+permutest(fvg2_betascid_cent, permutations = 9999)
+```
+
+####Post-hoc Tests
+
+```{r}
+pairwise.adonis2(braycurtdm_fvg2$data ~ day + sample_type + sc_id,
+                 metadata_fvg2, 
+                 nperm = 9999,
+                 p_adjust_m = "bonferroni")
+
+pairwise.adonis2(braycurtdm_fvg2$data ~ sample_type + day + sc_id,
+                 metadata_fvg2, 
+                 nperm = 9999,
+                 p_adjust_m = "bonferroni")
+
+
+pairwise.adonis2(braycurtdm_fvg2$data ~ sc_id + day + sample_type,
+                 metadata_fvg2, 
+                 nperm = 9999,
+                 p_adjust_m = "bonferroni")
+
+```
+
+##Fecal vs. Gut ANCOMBC
+
+###Fecal vs. Gut 1
+
+```{r}
+physeq_fvg <- qza_to_phyloseq(features = "results/11_dada2_table_fvg.qza",
+                              taxonomy = "results/7_taxclass_BEE_ASVs_fvg.qza",
+                              metadata = "data/5_metadata_fvg_q2.tsv")
+
+
+ancombc_fvg <- ancombc2(data = physeq_fvg,
+                        tax_level = "Genus",
+                        fix_formula = "sample_type + sc_id",
+                        p_adj_method = "bonferroni",
+                        alpha = 0.05)
+
+ancombc_fvg
+
+```
+
+###Fecal vs. Gut 2
+
+```{r}
+physeq_fvg2 <- qza_to_phyloseq(features = "results/11_dada2_table_fvg2.qza",
+                              taxonomy = "results/7_taxclass_BEE_ASVs_fvg2.qza",
+                              metadata = "data/5_metadata_fvg2_q2.tsv")
+
+
+ancombc_fvg2 <- ancombc2(data = physeq_fvg2,
+                        tax_level = "Genus",
+                        fix_formula = "sample_type + day + sc_id",
+                        p_adj_method = "bonferroni",
+                        alpha = 0.05)
+
+ancombc_fvg2
+
+```
+
+
+##Fecal vs. Gut 2 - Permutation test for beta diverisities
+
+```{r}
+betadiv_perm <- lmp(dist~typecomp, data=fvg2_dist_pairvother_long, perm = "Prob", Ca=0.0001, maxIter=10000)
+
+summary(betadiv_perm)
+```
+
+
+##Fecal vs. Gut 2 - Correlations between 16S copy count in fecal and gut samples
+
+```{r}
+#Bifidobacterium
+Bifido_cor <- cor.test(fvg2_qpcr_data_Bifido_wide$log_fecal, 
+                      fvg2_qpcr_data_Bifido_wide$log_gut, 
+                      alternative="two.sided",   
+                      method="pearson")
+Bifido_cor
+
+#Bombilactobacillus
+Bombi_cor <- cor.test(fvg2_qpcr_data_Bombi_wide$log_fecal, 
+                      fvg2_qpcr_data_Bombi_wide$log_gut, 
+                      alternative="two.sided",   
+                      method="pearson")
+Bombi_cor
+
+#Bombiscardovia
+Bombiscar_cor <- cor.test(fvg2_qpcr_data_Bombiscar_wide$log_fecal, 
+                      fvg2_qpcr_data_Bombiscar_wide$log_gut, 
+                      alternative="two.sided",   
+                      method="pearson")
+Bombiscar_cor
+
+#Lactobacillus
+Lacto_cor <- cor.test(fvg2_qpcr_data_Lacto_wide$log_fecal, 
+                      fvg2_qpcr_data_Lacto_wide$log_gut, 
+                      alternative="two.sided",   
+                      method="pearson")
+Lacto_cor
+
+#Schmidhempelia
+Schmid_cor <- cor.test(fvg2_qpcr_data_Schmid_wide$log_fecal, 
+                      fvg2_qpcr_data_Schmid_wide$log_gut, 
+                      alternative="two.sided",   
+                      method="pearson")
+Schmid_cor
+
+#Snodgrassella
+Snod_cor <- cor.test(fvg2_qpcr_data_Snod_wide$log_fecal, 
+                      fvg2_qpcr_data_Snod_wide$log_gut, 
+                      alternative="two.sided",   
+                      method="pearson")
+Snod_cor
+
+```
+
+

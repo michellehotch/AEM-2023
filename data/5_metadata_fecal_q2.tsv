@@ -1,0 +1,302 @@
+sampleid	sampletype	scid	day	treatment	mcround	age
+#q2:types	categorical	categorical	categorical	categorical	categorical	categorical
+M10D0	fecal	2	0	1 ppb	1	1
+M10D14	fecal	2	14	1 ppb	1	1
+M10D3	fecal	2	3	1 ppb	1	1
+M10D5	fecal	2	5	1 ppb	1	1
+M10D8	fecal	2	8	1 ppb	1	1
+M11D0	fecal	2	0	10 ppb	1	1
+M11D14	fecal	2	14	10 ppb	1	1
+M11D3	fecal	2	3	10 ppb	1	1
+M11D5	fecal	2	5	10 ppb	1	1
+M11D8	fecal	2	8	10 ppb	1	1
+M12D0	fecal	2	0	100 ppb	1	1
+M12D14	fecal	2	14	100 ppb	1	1
+M12D3	fecal	2	3	100 ppb	1	1
+M12D5	fecal	2	5	100 ppb	1	1
+M12D8	fecal	2	8	100 ppb	1	1
+M13D0	fecal	2	0	800 ppb	1	1
+M13D14	fecal	2	14	800 ppb	1	1
+M13D3	fecal	2	3	800 ppb	1	1
+M13D5	fecal	2	5	800 ppb	1	1
+M13D8	fecal	2	8	800 ppb	1	1
+M15D0	fecal	1	0	Control	2	3
+M15D14	fecal	1	14	Control	2	3
+M15D3	fecal	1	3	Control	2	3
+M15D5	fecal	1	5	Control	2	3
+M15D8	fecal	1	8	Control	2	3
+M16D0	fecal	1	0	DMSO	2	3
+M16D14	fecal	1	14	DMSO	2	3
+M16D3	fecal	1	3	DMSO	2	3
+M16D5	fecal	1	5	DMSO	2	3
+M16D8	fecal	1	8	DMSO	2	3
+M17D0	fecal	1	0	1 ppb	2	3
+M17D14	fecal	1	14	1 ppb	2	3
+M17D3	fecal	1	3	1 ppb	2	3
+M17D5	fecal	1	5	1 ppb	2	3
+M17D8	fecal	1	8	1 ppb	2	3
+M18D0	fecal	1	0	10 ppb	2	3
+M18D14	fecal	1	14	10 ppb	2	3
+M18D3	fecal	1	3	10 ppb	2	3
+M18D5	fecal	1	5	10 ppb	2	3
+M18D8	fecal	1	8	10 ppb	2	3
+M19D0	fecal	1	0	100 ppb	2	3
+M19D14	fecal	1	14	100 ppb	2	3
+M19D3	fecal	1	3	100 ppb	2	3
+M19D5	fecal	1	5	100 ppb	2	3
+M19D8	fecal	1	8	100 ppb	2	3
+M1D0	fecal	1	0	Control	1	1
+M1D14	fecal	1	14	Control	1	1
+M1D3	fecal	1	3	Control	1	1
+M1D5	fecal	1	5	Control	1	1
+M1D8	fecal	1	8	Control	1	1
+M20D0	fecal	1	0	800 ppb	2	3
+M20D14	fecal	1	14	800 ppb	2	3
+M20D3	fecal	1	3	800 ppb	2	3
+M20D5	fecal	1	5	800 ppb	2	3
+M20D8	fecal	1	8	800 ppb	2	3
+M22D0	fecal	2	0	Control	2	3
+M22D14	fecal	2	14	Control	2	3
+M22D3	fecal	2	3	Control	2	3
+M22D5	fecal	2	5	Control	2	3
+M22D8	fecal	2	8	Control	2	3
+M23D0	fecal	2	0	DMSO	2	3
+M23D14	fecal	2	14	DMSO	2	3
+M23D3	fecal	2	3	DMSO	2	3
+M23D5	fecal	2	5	DMSO	2	3
+M23D8	fecal	2	8	DMSO	2	3
+M24D0	fecal	2	0	1 ppb	2	3
+M24D14	fecal	2	14	1 ppb	2	3
+M24D3	fecal	2	3	1 ppb	2	3
+M24D5	fecal	2	5	1 ppb	2	3
+M24D8	fecal	2	8	1 ppb	2	3
+M25D0	fecal	2	0	10 ppb	2	3
+M25D14	fecal	2	14	10 ppb	2	3
+M25D3	fecal	2	3	10 ppb	2	3
+M25D5	fecal	2	5	10 ppb	2	3
+M25D8	fecal	2	8	10 ppb	2	3
+M26D0	fecal	2	0	100 ppb	2	3
+M26D14	fecal	2	14	100 ppb	2	3
+M26D3	fecal	2	3	100 ppb	2	3
+M26D5	fecal	2	5	100 ppb	2	3
+M26D8	fecal	2	8	100 ppb	2	3
+M27D0	fecal	2	0	800 ppb	2	3
+M27D14	fecal	2	14	800 ppb	2	3
+M27D3	fecal	2	3	800 ppb	2	3
+M27D5	fecal	2	5	800 ppb	2	3
+M27D8	fecal	2	8	800 ppb	2	3
+M29D0	fecal	3	0	Control	3	1
+M29D14	fecal	3	14	Control	3	1
+M29D3	fecal	3	3	Control	3	1
+M29D5	fecal	3	5	Control	3	1
+M29D8	fecal	3	8	Control	3	1
+M2D0	fecal	1	0	DMSO	1	1
+M2D14	fecal	1	14	DMSO	1	1
+M2D3	fecal	1	3	DMSO	1	1
+M2D5	fecal	1	5	DMSO	1	1
+M2D8	fecal	1	8	DMSO	1	1
+M30D0	fecal	3	0	DMSO	3	1
+M30D14	fecal	3	14	DMSO	3	1
+M30D3	fecal	3	3	DMSO	3	1
+M30D5	fecal	3	5	DMSO	3	1
+M30D8	fecal	3	8	DMSO	3	1
+M31D0	fecal	3	0	1 ppb	3	1
+M31D14	fecal	3	14	1 ppb	3	1
+M31D3	fecal	3	3	1 ppb	3	1
+M31D5	fecal	3	5	1 ppb	3	1
+M31D8	fecal	3	8	1 ppb	3	1
+M32D0	fecal	3	0	10 ppb	3	1
+M32D14	fecal	3	14	10 ppb	3	1
+M32D3	fecal	3	3	10 ppb	3	1
+M32D5	fecal	3	5	10 ppb	3	1
+M32D8	fecal	3	8	10 ppb	3	1
+M33D0	fecal	3	0	100 ppb	3	1
+M33D14	fecal	3	14	100 ppb	3	1
+M33D3	fecal	3	3	100 ppb	3	1
+M33D5	fecal	3	5	100 ppb	3	1
+M33D8	fecal	3	8	100 ppb	3	1
+M34D0	fecal	3	0	800 ppb	3	1
+M34D14	fecal	3	14	800 ppb	3	1
+M34D3	fecal	3	3	800 ppb	3	1
+M34D5	fecal	3	5	800 ppb	3	1
+M34D8	fecal	3	8	800 ppb	3	1
+M36D0	fecal	4	0	Control	3	1
+M36D14	fecal	4	14	Control	3	1
+M36D3	fecal	4	3	Control	3	1
+M36D5	fecal	4	5	Control	3	1
+M36D8	fecal	4	8	Control	3	1
+M37D0	fecal	4	0	DMSO	3	1
+M37D14	fecal	4	14	DMSO	3	1
+M37D3	fecal	4	3	DMSO	3	1
+M37D5	fecal	4	5	DMSO	3	1
+M37D8	fecal	4	8	DMSO	3	1
+M38D0	fecal	4	0	1 ppb	3	1
+M38D14	fecal	4	14	1 ppb	3	1
+M38D3	fecal	4	3	1 ppb	3	1
+M38D5	fecal	4	5	1 ppb	3	1
+M38D8	fecal	4	8	1 ppb	3	1
+M39D0	fecal	4	0	10 ppb	3	1
+M39D14	fecal	4	14	10 ppb	3	1
+M39D3	fecal	4	3	10 ppb	3	1
+M39D5	fecal	4	5	10 ppb	3	1
+M39D8	fecal	4	8	10 ppb	3	1
+M3D0	fecal	1	0	1 ppb	1	1
+M3D14	fecal	1	14	1 ppb	1	1
+M3D3	fecal	1	3	1 ppb	1	1
+M3D5	fecal	1	5	1 ppb	1	1
+M3D8	fecal	1	8	1 ppb	1	1
+M40D0	fecal	4	0	100 ppb	3	1
+M40D14	fecal	4	14	100 ppb	3	1
+M40D3	fecal	4	3	100 ppb	3	1
+M40D5	fecal	4	5	100 ppb	3	1
+M40D8	fecal	4	8	100 ppb	3	1
+M41D0	fecal	4	0	800 ppb	3	1
+M41D14	fecal	4	14	800 ppb	3	1
+M41D3	fecal	4	3	800 ppb	3	1
+M41D5	fecal	4	5	800 ppb	3	1
+M41D8	fecal	4	8	800 ppb	3	1
+M43D0	fecal	3	0	Control	4	3
+M43D14	fecal	3	14	Control	4	3
+M43D3	fecal	3	3	Control	4	3
+M43D5	fecal	3	5	Control	4	3
+M43D8	fecal	3	8	Control	4	3
+M44D0	fecal	3	0	DMSO	4	3
+M44D14	fecal	3	14	DMSO	4	3
+M44D3	fecal	3	3	DMSO	4	3
+M44D5	fecal	3	5	DMSO	4	3
+M44D8	fecal	3	8	DMSO	4	3
+M45D0	fecal	3	0	1 ppb	4	3
+M45D14	fecal	3	14	1 ppb	4	3
+M45D3	fecal	3	3	1 ppb	4	3
+M45D5	fecal	3	5	1 ppb	4	3
+M45D8	fecal	3	8	1 ppb	4	3
+M46D0	fecal	3	0	10 ppb	4	3
+M46D14	fecal	3	14	10 ppb	4	3
+M46D3	fecal	3	3	10 ppb	4	3
+M46D5	fecal	3	5	10 ppb	4	3
+M46D8	fecal	3	8	10 ppb	4	3
+M47D0	fecal	3	0	100 ppb	4	3
+M47D14	fecal	3	14	100 ppb	4	3
+M47D3	fecal	3	3	100 ppb	4	3
+M47D5	fecal	3	5	100 ppb	4	3
+M47D8	fecal	3	8	100 ppb	4	3
+M48D0	fecal	3	0	800 ppb	4	3
+M48D14	fecal	3	14	800 ppb	4	3
+M48D3	fecal	3	3	800 ppb	4	3
+M48D5	fecal	3	5	800 ppb	4	3
+M48D8	fecal	3	8	800 ppb	4	3
+M4D0	fecal	1	0	10 ppb	1	1
+M4D14	fecal	1	14	10 ppb	1	1
+M4D3	fecal	1	3	10 ppb	1	1
+M4D5	fecal	1	5	10 ppb	1	1
+M4D8	fecal	1	8	10 ppb	1	1
+M50D0	fecal	4	0	Control	4	3
+M50D14	fecal	4	14	Control	4	3
+M50D3	fecal	4	3	Control	4	3
+M50D5	fecal	4	5	Control	4	3
+M50D8	fecal	4	8	Control	4	3
+M51D0	fecal	4	0	DMSO	4	3
+M51D14	fecal	4	14	DMSO	4	3
+M51D3	fecal	4	3	DMSO	4	3
+M51D5	fecal	4	5	DMSO	4	3
+M51D8	fecal	4	8	DMSO	4	3
+M52D0	fecal	4	0	1 ppb	4	3
+M52D14	fecal	4	14	1 ppb	4	3
+M52D3	fecal	4	3	1 ppb	4	3
+M52D5	fecal	4	5	1 ppb	4	3
+M52D8	fecal	4	8	1 ppb	4	3
+M53D0	fecal	4	0	10 ppb	4	3
+M53D14	fecal	4	14	10 ppb	4	3
+M53D3	fecal	4	3	10 ppb	4	3
+M53D5	fecal	4	5	10 ppb	4	3
+M53D8	fecal	4	8	10 ppb	4	3
+M54D0	fecal	4	0	100 ppb	4	3
+M54D14	fecal	4	14	100 ppb	4	3
+M54D3	fecal	4	3	100 ppb	4	3
+M54D5	fecal	4	5	100 ppb	4	3
+M54D8	fecal	4	8	100 ppb	4	3
+M55D0	fecal	4	0	800 ppb	4	3
+M55D14	fecal	4	14	800 ppb	4	3
+M55D3	fecal	4	3	800 ppb	4	3
+M55D5	fecal	4	5	800 ppb	4	3
+M55D8	fecal	4	8	800 ppb	4	3
+M57D0	fecal	5	0	Control	5	1
+M57D14	fecal	5	14	Control	5	1
+M57D3	fecal	5	3	Control	5	1
+M57D5	fecal	5	5	Control	5	1
+M57D8	fecal	5	8	Control	5	1
+M58D0	fecal	5	0	DMSO	5	1
+M58D14	fecal	5	14	DMSO	5	1
+M58D3	fecal	5	3	DMSO	5	1
+M58D5	fecal	5	5	DMSO	5	1
+M58D8	fecal	5	8	DMSO	5	1
+M59D0	fecal	5	0	1 ppb	5	1
+M59D14	fecal	5	14	1 ppb	5	1
+M59D3	fecal	5	3	1 ppb	5	1
+M59D5	fecal	5	5	1 ppb	5	1
+M59D8	fecal	5	8	1 ppb	5	1
+M5D0	fecal	1	0	100 ppb	1	1
+M5D14	fecal	1	14	100 ppb	1	1
+M5D3	fecal	1	3	100 ppb	1	1
+M5D5	fecal	1	5	100 ppb	1	1
+M5D8	fecal	1	8	100 ppb	1	1
+M60D0	fecal	5	0	10 ppb	5	1
+M60D14	fecal	5	14	10 ppb	5	1
+M60D3	fecal	5	3	10 ppb	5	1
+M60D5	fecal	5	5	10 ppb	5	1
+M60D8	fecal	5	8	10 ppb	5	1
+M61D0	fecal	5	0	100 ppb	5	1
+M61D14	fecal	5	14	100 ppb	5	1
+M61D3	fecal	5	3	100 ppb	5	1
+M61D5	fecal	5	5	100 ppb	5	1
+M61D8	fecal	5	8	100 ppb	5	1
+M62D0	fecal	5	0	800 ppb	5	1
+M62D14	fecal	5	14	800 ppb	5	1
+M62D3	fecal	5	3	800 ppb	5	1
+M62D5	fecal	5	5	800 ppb	5	1
+M62D8	fecal	5	8	800 ppb	5	1
+M6D0	fecal	1	0	800 ppb	1	1
+M6D14	fecal	1	14	800 ppb	1	1
+M6D3	fecal	1	3	800 ppb	1	1
+M6D5	fecal	1	5	800 ppb	1	1
+M6D8	fecal	1	8	800 ppb	1	1
+M71D0	fecal	5	0	Control	6	3
+M71D14	fecal	5	14	Control	6	3
+M71D3	fecal	5	3	Control	6	3
+M71D5	fecal	5	5	Control	6	3
+M71D8	fecal	5	8	Control	6	3
+M72D0	fecal	5	0	DMSO	6	3
+M72D14	fecal	5	14	DMSO	6	3
+M72D3	fecal	5	3	DMSO	6	3
+M72D5	fecal	5	5	DMSO	6	3
+M72D8	fecal	5	8	DMSO	6	3
+M73D0	fecal	5	0	1 ppb	6	3
+M73D14	fecal	5	14	1 ppb	6	3
+M73D3	fecal	5	3	1 ppb	6	3
+M73D5	fecal	5	5	1 ppb	6	3
+M73D8	fecal	5	8	1 ppb	6	3
+M74D0	fecal	5	0	10 ppb	6	3
+M74D14	fecal	5	14	10 ppb	6	3
+M74D3	fecal	5	3	10 ppb	6	3
+M74D5	fecal	5	5	10 ppb	6	3
+M74D8	fecal	5	8	10 ppb	6	3
+M75D0	fecal	5	0	100 ppb	6	3
+M75D14	fecal	5	14	100 ppb	6	3
+M75D3	fecal	5	3	100 ppb	6	3
+M75D5	fecal	5	5	100 ppb	6	3
+M75D8	fecal	5	8	100 ppb	6	3
+M76D0	fecal	5	0	800 ppb	6	3
+M76D14	fecal	5	14	800 ppb	6	3
+M76D3	fecal	5	3	800 ppb	6	3
+M76D5	fecal	5	5	800 ppb	6	3
+M76D8	fecal	5	8	800 ppb	6	3
+M8D0	fecal	2	0	Control	1	1
+M8D14	fecal	2	14	Control	1	1
+M8D3	fecal	2	3	Control	1	1
+M8D5	fecal	2	5	Control	1	1
+M8D8	fecal	2	8	Control	1	1
+M9D0	fecal	2	0	DMSO	1	1
+M9D14	fecal	2	14	DMSO	1	1
+M9D3	fecal	2	3	DMSO	1	1
+M9D5	fecal	2	5	DMSO	1	1
+M9D8	fecal	2	8	DMSO	1	1

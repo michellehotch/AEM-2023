@@ -1,0 +1,627 @@
+---
+title: "1 - microcolony production figures and analysis"
+author: "Michelle Z Hotchkiss"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+#Packages
+
+```{r}
+library(tidyverse)
+library(RColorBrewer)
+library(MetBrewer)
+library(lme4) 
+library(lmerTest)
+library(performance) 
+library(emmeans)
+library(glmmTMB)
+```
+
+#Load and format data
+
+```{r}
+mcdata <- read_csv("data/mc_production.csv")
+
+mcdata$treatment <- case_match(mcdata$treatment, "Control" ~ "Control", "DMSO" ~ "DMSO", "1ppb" ~ "1 ng/µL", "10ppb" ~ "10 ng/µL", "100ppb" ~ "100 ng/µL", "800ppb" ~ "800 ng/µL")
+
+mcdata$treatment <- factor(mcdata$treatment, levels = c("Control", "DMSO", "1 ng/µL", "10 ng/µL", "100 ng/µL", "800 ng/µL"))
+
+mcdata$sc_id <- as.factor(mcdata$sc_id)
+mcdata$age <- as.factor(mcdata$age)
+
+mcdata$average_pupal_weight <- (mcdata$pupae_weight/mcdata$pupae_count)
+```
+
+#Figures
+
+##1A: Number of adults alive
+
+```{r}
+age_names <- list(
+  '1'="Age: 1 Week",
+  '2'="Age: 3 Weeks"
+)
+
+age_labeller <- function(variable,value){
+  return(age_names[value])
+}
+
+mcprod_fig1A <- 
+  mcdata %>% 
+  ggplot(aes(x=treatment, y=worker_count, fill=treatment, color=treatment)) + 
+  geom_boxplot(alpha=0.4, lwd=0.7)+
+  geom_jitter(shape=16, position=position_jitter(width=0.15, height=0), size=3)+
+  facet_grid(cols=vars(age), labeller=age_labeller)+
+  theme_classic()+
+  theme(
+    panel.spacing = unit(.20, "lines"),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 1), 
+    strip.background = element_rect(
+     color="white", linewidth=1.5, linetype="solid"),
+     strip.text = element_text(colour = "black"),
+    axis.line=element_blank(),
+    text = element_text(size = 16), axis.text.x = element_blank(),
+        axis.text.y = element_text(size = 16, color = "black"),
+        legend.position = "none",
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  scale_x_discrete(name="Treatment")+
+  scale_y_continuous(name ="Number of workers", limits = c(3.9,10.5))+
+  scale_fill_met_d("Hiroshige", direction = -1)+
+  scale_color_met_d("Hiroshige", direction = -1)
+```
+
+##1B: Adult weight
+
+```{r}
+# New facet label names for age variable
+age_names <- list(
+  '1'="Age: 1 Week",
+  '2'="Age: 3 Weeks"
+)
+
+age_labeller <- function(variable,value){
+  return(age_names[value])
+}
+
+mcprod_fig1B<-
+  mcdata %>% 
+  ggplot(aes(x=treatment, y=average_worker_weight, fill=treatment, color=treatment)) + 
+  geom_boxplot(alpha=0.4, lwd=0.7)+
+  geom_jitter(shape=16, position=position_jitter(width=0.15, height=0), size=3)+
+  facet_grid(cols=vars(age), labeller=age_labeller)+
+  theme_classic()+
+  theme(
+    panel.spacing = unit(.20, "lines"),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 1), 
+    strip.background = element_rect(
+     color="white", linewidth=1.5, linetype="solid"),
+    strip.text = element_text(colour = "black"),
+    axis.line=element_blank(),
+    text = element_text(size = 16), axis.text.x = element_blank(),
+        axis.text.y = element_text(size = 16, color = "black"),
+        legend.position = "none",
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  scale_x_discrete(name="Treatment")+
+  scale_y_continuous(name ="Average worker weight (mg)", limits = c(120,221))+
+  scale_fill_met_d("Hiroshige", direction = -1)+
+  scale_color_met_d("Hiroshige", direction = -1)
+```
+
+
+##1C: Number of eggs
+
+```{r}
+age_names <- list(
+  '1'="Age: 1 Week",
+  '2'="Age: 3 Weeks"
+)
+
+age_labeller <- function(variable,value){
+  return(age_names[value])
+}
+
+mcprod_fig1C<-
+  mcdata %>% 
+  ggplot(aes(x=treatment, y=egg_count, fill=treatment, color=treatment)) + 
+  geom_boxplot(alpha=0.4, lwd=0.7)+
+  geom_jitter(shape=16, position=position_jitter(width=0.15, height=0), size=3)+
+  facet_grid(cols=vars(age))+
+  theme_classic()+
+  theme(
+    panel.spacing = unit(.20, "lines"),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 1), 
+    strip.background = element_rect(
+     color="white", linewidth=1.5, linetype="solid"),
+     strip.text = element_blank(),
+    axis.line=element_blank(),
+    text = element_text(size = 16), axis.text.x = element_blank(),
+        axis.text.y = element_text(size = 16, color = "black"),
+        legend.position = "none",
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  scale_x_discrete(name="Treatment")+
+  scale_y_continuous(name ="Number of eggs", limits = c(0,59))+
+  scale_fill_met_d("Hiroshige", direction = -1)+
+  scale_color_met_d("Hiroshige", direction = -1)
+```
+
+##1D: Egg weight
+
+```{r}
+age_names <- list(
+  '1'="Age: 1 Week",
+  '2'="Age: 3 Weeks"
+)
+
+age_labeller <- function(variable,value){
+  return(age_names[value])
+}
+
+mcprod_fig1D<-
+mcdata %>% 
+  ggplot(aes(x=treatment, y=average_egg_weight, fill=treatment, color=treatment)) + 
+  geom_boxplot(alpha=0.4, lwd=0.7)+
+  geom_jitter(shape=16, position=position_jitter(width=0.15, height=0), size=3)+
+  facet_grid(cols=vars(age))+
+  theme_classic()+
+  theme(
+    panel.spacing = unit(.20, "lines"),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 1), 
+    strip.background = element_rect(
+     color="white", linewidth=1.5, linetype="solid"),
+     strip.text = element_blank(),
+    axis.line=element_blank(),
+    text = element_text(size = 16), axis.text.x = element_blank(),
+        axis.text.y = element_text(size = 16, color = "black"),
+        legend.position = "none",
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  scale_x_discrete(name="Treatment")+
+  scale_y_continuous(name ="Average egg weight (mg)", limits = c(1.1,2.6))+
+  scale_fill_met_d("Hiroshige", direction = -1)+
+  scale_color_met_d("Hiroshige", direction = -1)
+```
+
+##1E: Number of larvae
+
+```{r}
+age_names <- list(
+  '1'="Age: 1 Week",
+  '2'="Age: 3 Weeks"
+)
+
+age_labeller <- function(variable,value){
+  return(age_names[value])
+}
+
+mcprod_fig1E<-
+mcdata %>% 
+  ggplot(aes(x=treatment, y=larvae_count, fill=treatment, color=treatment)) + 
+  geom_boxplot(alpha=0.4, lwd=0.7)+
+  geom_jitter(shape=16, position=position_jitter(width=0.15, height=0), size=3)+
+  facet_grid(cols=vars(age))+
+  theme_classic()+
+  theme(
+    panel.spacing = unit(.20, "lines"),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 1), 
+    strip.background = element_rect(
+     color="white", linewidth=1.5, linetype="solid"),
+    strip.text = element_blank(),
+    axis.line=element_blank(),
+    text = element_text(size = 16), axis.text.x = element_blank(),
+        axis.text.y = element_text(size = 16, color = "black"),
+        legend.position = "none",
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  scale_x_discrete(name="Treatment")+
+  scale_y_continuous(name ="Number of larvae", limits = c(0, 41))+
+  scale_fill_met_d("Hiroshige", direction = -1)+
+  scale_color_met_d("Hiroshige", direction = -1)
+```
+
+
+##1F: Larval weight
+
+```{r}
+age_names <- list(
+  '1'="Age: 1 Week",
+  '2'="Age: 3 Weeks"
+)
+
+age_labeller <- function(variable,value){
+  return(age_names[value])
+}
+
+mcprod_fig1F<-
+mcdata %>% 
+  ggplot(aes(x=treatment, y=average_larvae_weight, fill=treatment, color=treatment)) + 
+  geom_boxplot(alpha=0.4, lwd=0.7)+
+  geom_jitter(shape=16, position=position_jitter(width=0.15, height=0), size=3)+
+  facet_grid(cols=vars(age))+
+  theme_classic()+
+  theme(
+    panel.spacing = unit(.20, "lines"),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 1), 
+    strip.background = element_rect(
+     color="white", linewidth=1.5, linetype="solid"),
+    strip.text = element_blank(),
+    axis.line=element_blank(),
+    text = element_text(size = 16), axis.text.x = element_blank(),
+        axis.text.y = element_text(size = 16, color = "black"),
+        legend.position = "none",
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  scale_x_discrete(name="Treatment")+
+  scale_y_continuous(name ="Average larva weight (mg)", limits = c(0, 285))+
+  scale_fill_met_d("Hiroshige", direction = -1)+
+  scale_color_met_d("Hiroshige", direction = -1)
+```
+
+
+##1G: Number of pupae
+
+```{r}
+age_names <- list(
+  '1'="Age: 1 Week",
+  '2'="Age: 3 Weeks"
+)
+
+age_labeller <- function(variable,value){
+  return(age_names[value])
+}
+
+mcprod_fig1G<-
+mcdata %>% 
+  ggplot(aes(x=treatment, y=pupae_count, fill=treatment, color=treatment)) + 
+  geom_boxplot(alpha=0.4, lwd=0.7)+
+  geom_jitter(shape=16, position=position_jitter(width=0.15, height=0), size=3)+
+  facet_grid(cols=vars(age))+
+  theme_classic()+
+  theme(
+    panel.spacing = unit(.20, "lines"),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 1), 
+    strip.background = element_rect(
+     color="white", linewidth=1.5, linetype="solid"),
+    strip.text = element_blank(),
+    axis.line=element_blank(),
+    text = element_text(size = 16), axis.text.x = element_text(size = 16, color = "black", angle = 45, hjust = 1, vjust=1),
+        axis.text.y = element_text(size = 16, color = "black"),
+        legend.position = "none",
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  scale_x_discrete(name="Treatment")+
+  scale_y_continuous(name ="Number of pupae", limits = c(0, 3.4))+
+  scale_fill_met_d("Hiroshige", direction = -1)+
+  scale_color_met_d("Hiroshige", direction = -1)
+```
+
+
+##1H: Pupal weight
+
+```{r}
+age_names <- list(
+  '1'="Age: 1 Week",
+  '2'="Age: 3 Weeks"
+)
+
+age_labeller <- function(variable,value){
+  return(age_names[value])
+}
+
+mcprod_fig1H<-
+mcdata %>% 
+  ggplot(aes(x=treatment, y=average_pupal_weight, fill=treatment, color=treatment)) + 
+  geom_boxplot(alpha=0.4, lwd=0.7)+
+  geom_jitter(shape=16, position=position_jitter(width=0.15, height=0), size=3)+
+  facet_grid(cols=vars(age))+
+  theme_classic()+
+  theme(
+    panel.spacing = unit(.20, "lines"),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 1), 
+    strip.background = element_rect(
+     color="white", linewidth=1.5, linetype="solid"),
+    strip.text = element_blank(),
+    axis.line=element_blank(),
+    text = element_text(size = 16), axis.text.x = element_text(size = 16, color = "black", angle = 45, hjust = 1, vjust=1),
+        axis.text.y = element_text(size = 16, color = "black"),
+        legend.position = "none",
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  scale_x_discrete(name="Treatment")+
+  scale_y_continuous(name ="Average pupa \nweight (mg)")+
+  scale_fill_met_d("Hiroshige", direction = -1)+
+  scale_color_met_d("Hiroshige", direction = -1)
+```
+
+##Multi-panel Figure
+
+```{r}
+mcprod_final<-
+  ggarrange(mcprod_fig1A + rremove("xlab"),
+            NULL,
+          mcprod_fig1B + rremove("xlab"),
+          mcprod_fig1C+ rremove("xlab"),
+          NULL,
+          mcprod_fig1D + rremove("xlab"), 
+          mcprod_fig1E + rremove("xlab"), 
+          NULL,
+          mcprod_fig1F + rremove("xlab"), 
+          mcprod_fig1G + rremove("xlab"),
+          NULL,
+          mcprod_fig1H + rremove("xlab"), 
+          labels = c("A", "", "B", "C", "", "D", "E", "", "F", "G", "","H"),
+          label.x = 0.01,
+          label.y = 0.98,
+          font.label = list(size = 16),
+          ncol = 3, nrow = 4,
+          widths = c(1,0.05,1),
+          heights = c(1,1,1,1),
+          align = "v")
+
+annotate_figure(mcprod_final,
+                    bottom = text_grob("Treatment", size=16))
+```
+
+
+#Analysis
+
+##1A: Number of adults
+
+
+```{r}
+adultcountA <- glmer(worker_count ~ treatment*age + (1|sc_id), data = mcdata, family = poisson)
+
+adultcountB <- glmer(worker_count ~ treatment + age +(1|sc_id), data = mcdata, family = poisson)
+
+anova(adultcountA, adultcountB)
+
+adultcountC <- glmer(worker_count ~ treatment + (1|sc_id), data = mcdata, family = poisson)
+
+anova(adultcountB,adultcountC)
+
+adultcountD <- glmer(worker_count ~ age + (1|sc_id), data = mcdata, family = poisson)
+
+anova(adultcountB,adultcountD)
+
+check_model(adultcountB)
+performance::check_overdispersion(adultcountB)
+```
+
+
+##1B: Adult weight
+
+```{r}
+adultsizeA <- lmer(average_worker_weight ~ treatment*age + (1|sc_id), data = mcdata)
+
+anova(adultsizeA)
+
+adultsizeB <- lmer(average_worker_weight ~ treatment + age + (1|sc_id), data = mcdata)
+
+anova(adultsizeB)
+ranova(adultsizeB)
+
+check_model(adultsizeB)
+```
+
+##1C: Number of eggs
+
+```{r}
+eggcountA <- glmer(egg_count ~ treatment*age + (1|sc_id), data = mcdata, family = poisson)
+
+eggcountB <- glmer(egg_count ~ treatment+age + (1|sc_id), data = mcdata, family = poisson)
+
+anova(eggcountA, eggcountB)
+
+check_model(eggcountA)
+performance::check_overdispersion(eggcountA)
+#overdispersion detected - try a negative binomial distribution
+
+eggcountA_nb <- glmer.nb(egg_count ~ treatment*age + (1|sc_id), data = mcdata)
+#model fails to converge, try using glmmTMB 
+
+#according to https://stats.stackexchange.com/questions/419304/computing-different-types-of-negative-binomial-regression, glmer.nb uses similar negative binomial formula to nbinom1
+
+eggcountA_TMB <- glmmTMB(egg_count ~ treatment*age + (1|sc_id), data = mcdata, family = nbinom1())
+
+eggcountB_TMB <- glmmTMB(egg_count ~ treatment+age + (1|sc_id), data = mcdata, family = nbinom1())
+
+anova(eggcountA_TMB,eggcountB_TMB)
+#interaction not signficant, return to glmer.nb for consistency
+
+eggcountB_nb <- glmer.nb(egg_count ~ treatment+age + (1|sc_id), data = mcdata)
+
+eggcountC_nb <- glmer.nb(egg_count ~ age + (1|sc_id), data = mcdata)
+
+eggcountD_nb <- glmer.nb(egg_count ~ treatment + (1|sc_id), data = mcdata)
+
+anova(eggcountB_nb, eggcountC_nb)
+anova(eggcountB_nb, eggcountD_nb)
+
+#nothing significant
+
+check_model(eggcountB_nb)
+performance::check_overdispersion(eggcountB_nb)
+```
+
+
+
+##1D: Egg weight
+
+```{r}
+eggweightA <- lmer(average_egg_weight ~ treatment*age + (1|sc_id), data = mcdata)
+
+eggweightB <- lmer(average_egg_weight ~ treatment+age + (1|sc_id), data = mcdata)
+
+anova(eggweightA, eggweightB)
+
+eggweightC <- lmer(average_egg_weight ~ treatment + (1|sc_id), data = mcdata)
+
+eggweightD <- lmer(average_egg_weight ~ age + (1|sc_id), data = mcdata)
+
+anova(eggweightB, eggweightC)
+anova(eggweightB, eggweightD)
+
+check_model(eggweightB)
+
+```
+
+##1E: Number of larvae
+
+```{r}
+larvaecountA <- glmer(live_larvae ~ treatment*age + (1|sc_id), data = mcdata, family = poisson)
+
+larvaecountB <- glmer(live_larvae ~ treatment+age + (1|sc_id), data = mcdata, family = poisson)
+
+anova(larvaecountA, larvaecountB)
+
+larvaecountC <- glm(live_larvae ~ age + (1|sc_id), data = mcdata, family = poisson)
+
+larvaecountD <- glmer(live_larvae ~ treatment + (1|sc_id), data = mcdata, family = poisson)
+
+anova(larvaecountB, larvaecountC)
+anova(larvaecountB, larvaecountD)
+
+check_model(larvaecountB)
+performance::check_overdispersion(larvaecountB)
+#overdispersion detected, try negative binomial distribution
+
+
+larvaecountA_nb <- glmer.nb(live_larvae ~ treatment*age + (1|sc_id), data = mcdata)
+
+larvaecountB_nb <- glmer.nb(live_larvae ~ treatment+age + (1|sc_id), data = mcdata)
+
+anova(larvaecountA_nb,larvaecountB_nb)
+
+larvaecountC_nb <- glmer.nb(live_larvae ~ treatment + (1|sc_id), data = mcdata)
+
+larvaecountD_nb <- glmer.nb(live_larvae ~ age + (1|sc_id), data = mcdata)
+
+anova(larvaecountB_nb,larvaecountC_nb)
+anova(larvaecountB_nb,larvaecountD_nb)
+
+check_model(larvaecountD_nb)
+performance::check_overdispersion(larvaecountD_nb)
+
+larvaecountD_nb_means <- emmeans(larvaecountD_nb, specs = pairwise ~ age)
+larvaecountD_nb_means
+```
+
+##1F: Larval Weight
+
+```{r}
+larvalweightA <- lmer(average_larvae_weight ~ treatment*age + (1|sc_id), data = mcdata)
+
+larvalweightB <- lmer(average_larvae_weight ~ treatment+age + (1|sc_id), data = mcdata)
+
+anova(larvalweightA, larvalweightB)
+
+check_model(larvalweightA)
+
+tukey<-TukeyHSD(larvalweightA)
+
+larvalweightA_means = emmeans(larvalweightA, specs = ~ treatment*age)
+larvalweightA_means
+
+#compare means with custom list of contrasts
+
+Con1 <- c(1,0,0,0,0,0,0,0,0,0,0,0)
+DMSO1 <- c(0,1,0,0,0,0,0,0,0,0,0,0)
+CHT11 <- c(0,0,1,0,0,0,0,0,0,0,0,0)
+CHT101 <- c(0,0,0,1,0,0,0,0,0,0,0,0)
+CHT1001 <- c(0,0,0,0,1,0,0,0,0,0,0,0)
+CHT8001 <- c(0,0,0,0,0,1,0,0,0,0,0,0)
+Con3 <- c(0,0,0,0,0,0,1,0,0,0,0,0)
+DMSO3 <- c(0,0,0,0,0,0,0,1,0,0,0,0)
+CHT13 <- c(0,0,0,0,0,0,0,0,1,0,0,0)
+CHT103 <- c(0,0,0,0,0,0,0,0,0,1,0,0)
+CHT1003 <- c(0,0,0,0,0,0,0,0,0,0,1,0)
+CHT8003 <- c(0,0,0,0,0,0,0,0,0,0,0,1)
+
+contrast(larvalweightA_means, method = list("Con1 - DMSO1" = Con1 - DMSO1,
+                                            "Con1 - CHT11" = Con1 - CHT11,
+                                            "Con1 - CHT101" = Con1 - CHT101,
+                                            "Con1 - CHT1001" = Con1 - CHT1001,
+                                            "Con1 - CHT8001" = Con1 - CHT8001,
+                                            "DMSO1 - CHT11" = DMSO1 - CHT11,
+                                            "DMSO1 - CHT101" = DMSO1 - CHT101,
+                                            "DMSO1 - CHT1001" = DMSO1 - CHT1001,
+                                            "DMSO1 - CHT8001" = DMSO1 - CHT8001,
+                                            "CHT11 - CHT101" = CHT11 - CHT101,
+                                            "CHT11 - CHT1001" = CHT11 - CHT1001,
+                                            "CHT11 - CHT8001" = CHT11 - CHT8001,
+                                            "CHT101 - CHT1001" = CHT101 - CHT1001,
+                                            "CHT101 - CHT8001" = CHT101 - CHT8001,
+                                            "CHT1001 - CHT8001" = CHT1001 - CHT8001,
+                                            "Con3 - DMSO3" = Con3 - DMSO3,
+                                            "Con3 - CHT13" = Con3 - CHT13,
+                                            "Con3 - CHT103" = Con3 - CHT103,
+                                            "Con3 - CHT1003" = Con3 - CHT1003,
+                                            "Con3 - CHT8003" = Con3 - CHT8003,
+                                            "DMSO3 - CHT13" = DMSO3 - CHT13,
+                                            "DMSO3 - CHT103" = DMSO3 - CHT103,
+                                            "DMSO3 - CHT1003" = DMSO3 - CHT1003,
+                                            "DMSO3 - CHT8003" = DMSO3 - CHT8003,
+                                            "CHT13 - CHT103" = CHT13 - CHT103,
+                                            "CHT13 - CHT1003" = CHT13 - CHT1003,
+                                            "CHT13 - CHT8003" = CHT13 - CHT8003,
+                                            "CHT103 - CHT1003" = CHT103 - CHT1003,
+                                            "CHT103 - CHT8003" = CHT103 - CHT8003,
+                                            "CHT1003 - CHT8003" = CHT1003 - CHT8003,
+                                            "Con1 - Con3" = Con1 - Con3,
+                                            "DMSO1 - DMSO3" = DMSO1 - DMSO3,
+                                            "CHT11 - CHT13" = CHT11 - CHT13,
+                                            "CHT101 - CHT103" = CHT101 - CHT103,
+                                            "CHT1001 - CHT1003" = CHT1001 - CHT1003,
+                                            "CHT8001 - CHT8003" = CHT8001 - CHT8003
+                                            ))
+
+```
+
+##1G: Number of pupae
+
+```{r}
+pupaecountA <- glmer(pupae_count ~ treatment*age + (1|sc_id), data = mcdata, family = poisson)
+
+pupaecountB <- glmer(pupae_count ~ treatment+age + (1|sc_id), data = mcdata, family = poisson)
+
+anova(pupaecountA, pupaecountB)
+
+pupaecountC <- glmer(pupae_count ~ age + (1|sc_id), data = mcdata, family = poisson)
+
+pupaecountD <- glmer(pupae_count ~ treatment + (1|sc_id), data = mcdata, family = poisson)
+
+anova(pupaecountB, pupaecountC)
+anova(pupaecountB, pupaecountD)
+#age is significant
+
+check_model(pupaecountC)
+performance::check_overdispersion(pupaecountC)
+#overdispersion, try nb
+
+
+pupaecountA_nb <- glmer.nb(pupae_count ~ treatment + age + (1|sc_id), data = mcdata)
+
+pupaecountB_nb <- glmer.nb(pupae_count ~ age + (1|sc_id), data = mcdata)
+
+pupaecountC_nb <- glmer.nb(pupae_count ~ treatment + (1|sc_id), data = mcdata)
+
+anova(pupaecountA_nb, pupaecountB_nb)
+anova(pupaecountA_nb, pupaecountC_nb)
+
+check_model(pupaecountB_nb)
+performance::check_overdispersion(pupaecountB_nb)
+
+pupaecountB_nb_means <- emmeans(pupaecountB_nb, specs = pairwise ~ age)
+pupaecountB_nb_means
+```
+
+##1H: Pupal weight
+
+Too little data for accurate analysis.
+
+
+
