@@ -599,17 +599,25 @@ Fecal stacked relative, fecal stacked 16S, total 16S
 genecount_lother <- genecount_lother %>% 
   mutate(taxa_abunpermicrol = abundance/(final_fecal_volume_mL*1000))
 
+genecount_lother2c <- genecount_lother
+
+genecount_lother2c$day <- 
+  recode_factor(genecount_lother2c$day, "0" = "Day 0", "3" = "Day 3", "5" = "Day 5", "8" = "Day 8", "14" = "Day 14")
+
+genecount_lother2c$age <- 
+  recode_factor(genecount_lother2c$age, "1" = "Age: 1 Week", "3" = "Age: 3 Weeks")
+
 fecal16S_total<-
-genecount_lother %>% 
+genecount_lother2c %>% 
   filter(!(is.na(abundance))) %>% 
   filter(!(is.na(final_fecal_volume_mL))) %>% 
   filter(!(day =="Gut")) %>% 
-  group_by(samp_id, treatment, day, sc_id) %>% 
+  group_by(samp_id, treatment, day, sc_id,age) %>% 
   summarise(total_abun = sum(taxa_abunpermicrol)) %>%
   ggplot(aes(x = treatment, y = total_abun, fill = treatment, color = treatment))+
  geom_boxplot(alpha=0.4, lwd=0.7)+
   geom_jitter(shape=16, position=position_jitter(width=0.15, height=0), size=2)+
-  facet_grid(cols = vars(day))+
+  facet_grid(cols = vars(day), rows = vars(age))+
   theme_classic()+
   theme(
     panel.spacing = unit(.20, "lines"),
@@ -646,7 +654,7 @@ ggarrange(fig2AB,fecal16S_total,
           labels = c("","C"),
           ncol = 1,
           nrow = 2,
-          heights = c(4,1.5)
+          heights = c(4,2)
             )
 
 ```
@@ -765,20 +773,25 @@ cowplot::plot_grid(fecal_alphafig, fvg2_alphafig,
 
 ```{r}
 #per µL of feces 
-genecount_lother <- genecount_lother %>% 
-  mutate(taxa_abunpermicrol = abundance/(final_fecal_volume_mL*1000))
+genecount_lotherS4A <- genecount_lother
+
+genecount_lotherS4A$day <- 
+  recode_factor(genecount_lotherS4A$day, "0" = "Day 0", "3" = "Day 3", "5" = "Day 5", "8" = "Day 8", "14" = "Day 14")
+
+genecount_lotherS4A$age <- 
+  recode_factor(genecount_lotherS4A$age, "1" = "Age: 1 Week", "3" = "Age: 3 Weeks")
 
 figgc_total<-
-genecount_lother %>% 
+genecount_lotherS4A %>% 
   filter(!(is.na(abundance))) %>% 
   filter(!(is.na(final_fecal_volume_mL))) %>% 
   filter(!(day =="Gut")) %>% 
-  group_by(samp_id, treatment, day, sc_id) %>% 
+  group_by(samp_id, treatment, day, sc_id, age) %>% 
   summarise(total_abun = sum(taxa_abunpermicrol)) %>%
   ggplot(aes(x = treatment, y = total_abun, fill = treatment, color = treatment))+
  geom_boxplot(alpha=0.4, lwd=0.7)+
   geom_jitter(shape=16, position=position_jitter(width=0.15, height=0), size=2)+
-  facet_grid(cols = vars(day))+
+  facet_grid(cols = vars(day), rows =vars(age))+
   theme_classic()+
   theme(
     panel.spacing = unit(.20, "lines"),
@@ -799,8 +812,47 @@ genecount_lother %>%
   scale_color_met_d("Hiroshige", direction = -1)
 ```
 
+#### S4B - Enterobacteriaceae
 
-#### S4B - Bifidobacterium
+```{r}
+genecount_lotherS4B <- genecount_lother
+
+genecount_lotherS4B$age <- 
+  recode_factor(genecount_lotherS4B$age, "1" = "Age: 1 Week", "3" = "Age: 3 Weeks")
+
+figgc_entero<-
+genecount_lotherS4B %>% 
+  filter(!(is.na(abundance))) %>% 
+  filter(!(is.na(final_fecal_volume_mL))) %>% 
+  filter(!(day =="Gut")) %>% 
+  filter(taxa_name == "Enterobacteriaceae_ng") %>% 
+ group_by(samp_id, treatment, day, sc_id,taxa_name_p, age) %>% 
+ summarise(total_abun = sum(taxa_abunpermicrol)) %>%
+  ggplot(aes(x = day, y = total_abun))+
+  geom_boxplot(alpha=0.4, lwd=0.7,  fill = "#70bed5", color = "#70bed5")+
+  geom_jitter(shape=16, position=position_jitter(width=0.15, height=0), size=3,  fill = "#70bed5", color = "#70bed5")+
+  facet_grid(cols = vars(taxa_name_p), rows = vars(age))+
+
+  
+  theme_classic()+
+  theme(
+    panel.spacing = unit(.20, "lines"),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 1), 
+      strip.background = element_rect(
+     color="white", linewidth=1.5, linetype="solid"),
+     strip.text = element_text(colour = "black", size = 16),
+    axis.line=element_blank(),
+    text = element_text(size = 16), axis.text.x = element_text(size = 16, color = "black"),
+        axis.text.y = element_text(size = 14, color = "black"),
+        legend.position = "none",
+        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
+  scale_x_discrete(name="Day")+
+  scale_y_continuous(name ="16S rRNA gene copy number", expand = c(0,0), labels = scales::scientific,limits = c(0,1900000))
+```
+
+
+#### S4C - Bifidobacterium
 
 ```{r}
 figgc_bifido<-
@@ -835,7 +887,7 @@ figgc_bifido<-
   scale_y_continuous(name ="16S rRNA gene copy number", expand = c(0,0), limits = c(0,550000),labels = scales::scientific)
 ```
 
-#### S4C - Bombilactobacillus
+#### S4D - Bombilactobacillus
 
 ```{r}
 figgc_bombilac<-
@@ -868,40 +920,6 @@ genecount_lother %>%
         axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
   scale_x_discrete(name="Day")+
   scale_y_continuous(name ="16S rRNA gene copy number", expand = c(0,0), labels = scales::scientific, limits = c(0, 310000))
-```
-
-#### S4D - Enterobacteriaceae
-
-```{r}
-figgc_entero<-
-genecount_lother %>% 
-  filter(!(is.na(abundance))) %>% 
-  filter(!(is.na(final_fecal_volume_mL))) %>% 
-  filter(!(day =="Gut")) %>% 
-  filter(taxa_name == "Enterobacteriaceae_ng") %>% 
- group_by(samp_id, treatment, day, sc_id,taxa_name_p) %>% 
- summarise(total_abun = sum(taxa_abunpermicrol)) %>%
-  ggplot(aes(x = day, y = total_abun))+
-  geom_boxplot(alpha=0.4, lwd=0.7,  fill = "#70bed5", color = "#70bed5")+
-  geom_jitter(shape=16, position=position_jitter(width=0.15, height=0), size=3,  fill = "#70bed5", color = "#70bed5")+
-  facet_grid(cols = vars(taxa_name_p))+
-
-  
-  theme_classic()+
-  theme(
-    panel.spacing = unit(.20, "lines"),
-        panel.border = element_rect(color = "black", fill = NA, linewidth = 1), 
-      strip.background = element_rect(
-     color="white", linewidth=1.5, linetype="solid"),
-     strip.text = element_text(colour = "black", size = 16),
-    axis.line=element_blank(),
-    text = element_text(size = 16), axis.text.x = element_text(size = 16, color = "black"),
-        axis.text.y = element_text(size = 14, color = "black"),
-        legend.position = "none",
-        axis.title.y = element_text(size = 16, margin = margin(t = 0, r = 20, b = 0, l = 0)),
-        axis.title.x = element_text(size = 16, margin = margin(t = 20, r = 0, b = 0, l = 0)))+
-  scale_x_discrete(name="Day")+
-  scale_y_continuous(name ="16S rRNA gene copy number", expand = c(0,0), labels = scales::scientific,limits = c(0,1900000))
 ```
 
 #### S4E - Lactobacillus
@@ -1016,22 +1034,22 @@ genecount_lother %>%
 ```{r}
 figgc_fecalfinal<- 
 ggarrange(figgc_total + rremove("ylab"),
+          figgc_entero+ rremove("ylab"), 
         ggarrange(
             figgc_bifido+ rremove("ylab") + rremove("xlab"),
             figgc_bombilac+ rremove("ylab") + rremove("xlab"),
-            figgc_entero+ rremove("ylab") + rremove("xlab"), 
             figgc_lacto+ rremove("ylab") + rremove("xlab"), 
             figgc_Schmid+ rremove("ylab") + rremove("xlab"), 
             figgc_snod+ rremove("ylab") + rremove("xlab"), 
-            labels = c("B", "C", "D", "E","F","G"),
+            labels = c("C", "D", "E","F","G"),
             
             ncol = 3, nrow = 2,
             widths = c(1,1),
             align = "v"),
-      labels = c("A", ""),
+      labels = c("A", "B",""),
           ncol = 1,
-          nrow = 2,
-          heights = c(1,2.5)
+          nrow = 3,
+          heights = c(2,2,2.5)
                    )
 
 annotate_figure(figgc_fecalfinal, left = text_grob("16S rRNA gene copy count", rot = 90, size=16),
@@ -1791,18 +1809,56 @@ Total_modeldata <- genecount_lother %>%
   group_by(samp_id, treatment, day, age, sc_id, mc_id) %>% 
   summarize(total = sum(taxa_abunpermicrol))
 
-Total_model1 <- lmer(total ~ treatment*day + age + (1|sc_id/mc_id), data = Total_modeldata)
+Total_model0 <- lmer(total ~ treatment*day*age + (1|sc_id/mc_id), data = Total_modeldata)
+
+anova(Total_model0)
+
+Total_model1 <- lmer(total ~ treatment+day*age + (1|sc_id/mc_id), data = Total_modeldata)
 
 anova(Total_model1)
 
-Total_model2 <- lmer(total ~ treatment + day + age + (1|sc_id/mc_id), data = Total_modeldata)
+check_model(Total_model1)
 
-anova(Total_model2)
-
-check_model(Total_model2)
-
-Total_model2_means = emmeans(Total_model2, specs = pairwise ~ day)
+Total_model2_means = emmeans(Total_model2, specs = ~ day*age)
 Total_model2_means
+
+D0A1 <- c(1,0,0,0,0,0,0,0,0,0)
+D3A1 <- c(0,1,0,0,0,0,0,0,0,0)
+D5A1 <- c(0,0,1,0,0,0,0,0,0,0)
+D8A1 <- c(0,0,0,1,0,0,0,0,0,0)
+D14A1 <- c(0,0,0,0,1,0,0,0,0,0)
+D0A3 <- c(0,0,0,0,0,1,0,0,0,0)
+D3A3 <- c(0,0,0,0,0,0,1,0,0,0)
+D5A3 <- c(0,0,0,0,0,0,0,1,0,0)
+D8A3 <- c(0,0,0,0,0,0,0,0,1,0)
+D14A3 <- c(0,0,0,0,0,0,0,0,0,1)
+
+contrast(Total_model2_means, method = list("D0A1 - D3A1" = D0A1 - D3A1,
+                                            "D0A1 - D5A1" = D0A1 - D5A1,
+                                            "D0A1 - D8A1" = D0A1 - D8A1,
+                                            "D0A1 - D14A1" = D0A1 - D14A1,
+                                            "D3A1 - D5A1" = D3A1 - D5A1,
+                                            "D3A1 - D8A1" = D3A1 - D8A1,
+                                            "D3A1 - D14A1" = D3A1 - D14A1,
+                                            "D5A1 - D8A1" = D5A1 - D8A1,
+                                            "D5A1 - D14A1" = D5A1 - D14A1,
+                                            "D8A1 - D14A1" = D8A1 - D14A1,
+                                            "D0A3 - D3A3" = D0A3 - D3A3,
+                                            "D0A3 - D5A3" = D0A3 - D5A3,
+                                            "D0A3 - D8A3" = D0A3 - D8A3,
+                                            "D0A3 - D14A3" = D0A3 - D14A3,
+                                            "D3A3 - D5A3" = D3A3 - D5A3,
+                                            "D3A3 - D8A3" = D3A3 - D8A3,
+                                            "D3A3 - D14A3" = D3A3 - D14A3,
+                                            "D5A3 - D8A3" = D5A3 - D8A3,
+                                            "D5A3 - D14A3" = D5A3 - D14A3,
+                                            "D8A3 - D14A3" = D8A3 - D14A3,
+                                            "D0A1 - D0A3" = D0A1 - D0A3,
+                                            "D3A1 - D3A3" = D3A1 - D3A3,
+                                            "D5A1 - D5A3" = D5A1 - D5A3,
+                                            "D8A1 - D8A3" = D8A1 - D8A3,
+                                            "D14A1 - D14A3" = D14A1 - D14A3
+                                            ))
 ```
 
 ###Bifidobacterium
@@ -1815,6 +1871,10 @@ Bifido_modeldata <- genecount_lother %>%
   filter(taxa_name == "Bifidobacterium") %>% 
   group_by(samp_id, treatment, day, age, sc_id, mc_id) %>% 
   summarize(total = sum(taxa_abunpermicrol))
+
+Bifido_model0 <- lmer(total ~ treatment*day*age + (1|sc_id/mc_id), data = Bifido_modeldata)
+
+anova(Bifido_model0)
 
 Bifido_model1 <- lmer(total ~ treatment*day + age + (1|sc_id/mc_id), data = Bifido_modeldata)
 
@@ -1841,6 +1901,10 @@ Bombi_modeldata <- genecount_lother %>%
   group_by(samp_id, treatment, day, age, sc_id, mc_id) %>% 
   summarize(total = sum(taxa_abunpermicrol))
 
+Bombi_model0 <- lmer(total ~ treatment*day*age + (1|sc_id/mc_id), data = Bombi_modeldata)
+
+anova(Bombi_model0)
+
 Bombi_model1 <- lmer(total ~ treatment*day + age + (1|sc_id/mc_id), data = Bombi_modeldata)
 
 anova(Bombi_model1)
@@ -1853,7 +1917,6 @@ check_model(Bombi_model2)
 
 Bombi_model2_means = emmeans(Bombi_model2, specs = pairwise ~ day)
 Bombi_model2_means
-
 ```
 
 
@@ -1867,6 +1930,10 @@ Lactobac_modeldata <- genecount_lother %>%
   filter(taxa_name == "Lactobacillus") %>% 
   group_by(samp_id, treatment, day, age, sc_id, mc_id) %>% 
   summarize(total = sum(taxa_abunpermicrol))
+
+Lactobac_model0 <- lmer(total ~ treatment*day*age + (1|sc_id/mc_id), data = Lactobac_modeldata)
+
+anova(Lactobac_model0)
 
 Lactobac_model1 <- lmer(total ~ treatment*day + age + (1|sc_id/mc_id), data = Lactobac_modeldata)
 
@@ -1892,6 +1959,10 @@ Schmid_modeldata <- genecount_lother %>%
   group_by(samp_id, treatment, day, age, sc_id, mc_id) %>% 
   summarize(total = sum(taxa_abunpermicrol))
 
+Schmid_model0 <- lmer(total ~ treatment*day*age + (1|sc_id/mc_id), data = Schmid_modeldata)
+
+anova(Schmid_model0)
+
 Schmid_model1 <- lmer(total ~ treatment*day + age + (1|sc_id/mc_id), data = Schmid_modeldata)
 
 anova(Schmid_model1)
@@ -1914,7 +1985,11 @@ Snod_modeldata <- genecount_lother %>%
   group_by(samp_id, treatment, day, age, sc_id, mc_id) %>% 
   summarize(total = sum(taxa_abunpermicrol))
 
-Snod_model1 <- lmer(total ~ treatment*day + age + (1|sc_id/mc_id), data = Snod_modeldata)
+Snod_model0 <- lmer(total ~ treatment*day*age + (1|sc_id/mc_id), data = Snod_modeldata)
+
+anova(Snod_model0)
+
+Snod_model1 <- lmer(total ~ treatment+day*age + (1|sc_id/mc_id), data = Snod_modeldata)
 
 anova(Snod_model1)
 
@@ -1936,19 +2011,57 @@ Entero_modeldata <- genecount_lother %>%
   group_by(samp_id, treatment, day, age, sc_id, mc_id) %>% 
   summarize(total = sum(taxa_abunpermicrol))
 
-Entero_model1 <- lmer(total ~ treatment*day + age + (1|sc_id/mc_id), data = Entero_modeldata)
+Entero_model0 <- lmer(total ~ treatment*day*age + (1|sc_id/mc_id), data = Entero_modeldata)
+
+anova(Entero_model0)
+
+Entero_model1 <- lmer(total ~ treatment + day*age + (1|sc_id/mc_id), data = Entero_modeldata)
 
 anova(Entero_model1)
 
-Entero_model2 <- lmer(total ~ treatment + day + age + (1|sc_id/mc_id), data = Entero_modeldata)
 
-anova(Entero_model2)
+check_model(Entero_model1)
 
+Entero_model1_means = emmeans(Entero_model1, specs = ~ day*age)
+Entero_model1_means
 
-check_model(Entero_model2)
+D0A1 <- c(1,0,0,0,0,0,0,0,0,0)
+D3A1 <- c(0,1,0,0,0,0,0,0,0,0)
+D5A1 <- c(0,0,1,0,0,0,0,0,0,0)
+D8A1 <- c(0,0,0,1,0,0,0,0,0,0)
+D14A1 <- c(0,0,0,0,1,0,0,0,0,0)
+D0A3 <- c(0,0,0,0,0,1,0,0,0,0)
+D3A3 <- c(0,0,0,0,0,0,1,0,0,0)
+D5A3 <- c(0,0,0,0,0,0,0,1,0,0)
+D8A3 <- c(0,0,0,0,0,0,0,0,1,0)
+D14A3 <- c(0,0,0,0,0,0,0,0,0,1)
 
-Entero_model2_means = emmeans(Entero_model2, specs = pairwise ~ day)
-Entero_model2_means
+contrast(Entero_model1_means, method = list("D0A1 - D3A1" = D0A1 - D3A1,
+                                            "D0A1 - D5A1" = D0A1 - D5A1,
+                                            "D0A1 - D8A1" = D0A1 - D8A1,
+                                            "D0A1 - D14A1" = D0A1 - D14A1,
+                                            "D3A1 - D5A1" = D3A1 - D5A1,
+                                            "D3A1 - D8A1" = D3A1 - D8A1,
+                                            "D3A1 - D14A1" = D3A1 - D14A1,
+                                            "D5A1 - D8A1" = D5A1 - D8A1,
+                                            "D5A1 - D14A1" = D5A1 - D14A1,
+                                            "D8A1 - D14A1" = D8A1 - D14A1,
+                                            "D0A3 - D3A3" = D0A3 - D3A3,
+                                            "D0A3 - D5A3" = D0A3 - D5A3,
+                                            "D0A3 - D8A3" = D0A3 - D8A3,
+                                            "D0A3 - D14A3" = D0A3 - D14A3,
+                                            "D3A3 - D5A3" = D3A3 - D5A3,
+                                            "D3A3 - D8A3" = D3A3 - D8A3,
+                                            "D3A3 - D14A3" = D3A3 - D14A3,
+                                            "D5A3 - D8A3" = D5A3 - D8A3,
+                                            "D5A3 - D14A3" = D5A3 - D14A3,
+                                            "D8A3 - D14A3" = D8A3 - D14A3,
+                                            "D0A1 - D0A3" = D0A1 - D0A3,
+                                            "D3A1 - D3A3" = D3A1 - D3A3,
+                                            "D5A1 - D5A3" = D5A1 - D5A3,
+                                            "D8A1 - D8A3" = D8A1 - D8A3,
+                                            "D14A1 - D14A3" = D14A1 - D14A3
+                                            ))
 ```
 
 ##Fecal vs. Gut - 16S copy counts
@@ -1991,7 +2104,27 @@ check_model(fvg2_totalabundance_model2)
 
 ###Fecal Models - 16S rRNA gene copy number
 
-Model 1: treatment:day+age
+Model 0: treatment:day:age
+
+```{r}
+fecalqpcr_adonis0 <- adonis2(qpcr_pcoabray_matrix ~ day:treatment:age, 
+                         qpcr_metadata_adonis, 
+                         permutations = 9999, 
+                         by = "margin", 
+                         strata = qpcr_metadata_adonis$sc_id)
+
+fecalqpcr_adonis0
+
+fecalqpcr_adonis0_terms <- adonis2(qpcr_pcoabray_matrix ~ day:treatment:age + day:treatment + day:age + age:treatment + age + day + treatment, 
+                         qpcr_metadata_adonis, 
+                         permutations = 9999, 
+                         by = "terms", 
+                         strata = qpcr_metadata_adonis$sc_id)
+
+fecalqpcr_adonis0_terms
+```
+
+Model 1: treatment:day + age
 
 ```{r}
 fecalqpcr_adonis1 <- adonis2(qpcr_pcoabray_matrix ~ day:treatment+treatment+day+age, 
@@ -2010,6 +2143,7 @@ fecalqpcr_adonis1_terms <- adonis2(qpcr_pcoabray_matrix ~ day:treatment+treatmen
 
 fecalqpcr_adonis1_terms
 ```
+
 
 Model 2: treatment+day+age
 
@@ -2084,7 +2218,7 @@ pairwise.adonis2(qpcr_pcoabray_matrix ~ scid + day + age,
 
 ###FvG1 Models - relative abundance
 
-Model 1: treatment + sample type + microcolony of origin + source colony
+Model 0: treatment*sample type + microcolony of origin + source colony
 
 ```{r}
 fvg_adonis1_0 <- adonis2(braycurtdm_fvg1$data ~ sample_type*treatment+sc_id+sampleid_rev, 
@@ -2093,7 +2227,11 @@ fvg_adonis1_0 <- adonis2(braycurtdm_fvg1$data ~ sample_type*treatment+sc_id+samp
                          by = "terms")
 
 fvg_adonis1_0
+```
 
+Model 1: treatment + sample type + microcolony of origin + source colony
+
+```{r}
 fvg_adonis1_1 <- adonis2(braycurtdm_fvg1$data ~ sample_type+treatment+sc_id+sampleid_rev, 
                          metadata_fvg1, 
                          permutations = 9999, 
