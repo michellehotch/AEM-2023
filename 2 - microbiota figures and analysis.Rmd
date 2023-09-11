@@ -593,7 +593,6 @@ genecount_lother %>%
 
 ####2C 
 
-Fecal stacked relative, fecal stacked 16S, total 16S
 
 ```{r}
 genecount_lother <- genecount_lother %>% 
