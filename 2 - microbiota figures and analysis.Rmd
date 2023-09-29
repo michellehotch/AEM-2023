@@ -1514,7 +1514,6 @@ fvg2_qpcr_data_Bifido_wide %>%
 figcorrel_bifido<-
   fvg2_qpcr_data_Bifido_wide %>% 
   ggplot(aes(x=log_gut, y=log_fecal)) +
-  #geom_abline(lty = 2, color = "#f08944")+
   geom_smooth(method = lm, fill = "#f08944", color = "#f08944", fullrange=TRUE)+
   geom_point(color = "#f08944")+
   facet_grid(cols = vars(taxa))+
