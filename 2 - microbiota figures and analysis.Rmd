@@ -226,21 +226,21 @@ fvg1_abun_pcoa_matrix <- vegdist(fvg1_abun_pcoa, "bray")
 ##PCoA Results
 
 ```{r}
-braycurt_fecal<-read_qza("results/fecal_bray_curtis_pcoa_results.qza")
+braycurt_fecal<-read_qza("data/fecal_bray_curtis_pcoa_results.qza")
 
-braycurt_fvg1<-read_qza("results/fvg_bray_curtis_pcoa_results.qza")
+braycurt_fvg1<-read_qza("data/fvg_bray_curtis_pcoa_results.qza")
 
-braycurt_fvg2<-read_qza("results/fvg2_bray_curtis_pcoa_results.qza")
+braycurt_fvg2<-read_qza("data/fvg2_bray_curtis_pcoa_results.qza")
 ```
 
 ##Shannon Diversity
 
 ```{r}
-shannon_fecal<-read_qza("results/fecal_shannon_vector.qza")
+shannon_fecal<-read_qza("data/fecal_shannon_vector.qza")
 
-shannon_fvg1<-read_qza("results/fvg_shannon_vector.qza")
+shannon_fvg1<-read_qza("data/fvg_shannon_vector.qza")
 
-shannon_fvg2<-read_qza("results/fvg2_shannon_vector.qza")
+shannon_fvg2<-read_qza("data/fvg2_shannon_vector.qza")
 ```
 
 #Figures
@@ -2397,8 +2397,8 @@ pairwise.adonis2(braycurtdm_fvg2$data ~ sc_id + day + sample_type,
 ###Fecal vs. Gut 1
 
 ```{r}
-physeq_fvg <- qza_to_phyloseq(features = "results/11_dada2_table_fvg.qza",
-                              taxonomy = "results/7_taxclass_BEE_ASVs_fvg.qza",
+physeq_fvg <- qza_to_phyloseq(features = "data/11_dada2_table_fvg.qza",
+                              taxonomy = "data/7_taxclass_BEE_ASVs_fvg.qza",
                               metadata = "data/5_metadata_fvg_q2.tsv")
 
 
@@ -2415,8 +2415,8 @@ ancombc_fvg
 ###Fecal vs. Gut 2
 
 ```{r}
-physeq_fvg2 <- qza_to_phyloseq(features = "results/11_dada2_table_fvg2.qza",
-                              taxonomy = "results/7_taxclass_BEE_ASVs_fvg2.qza",
+physeq_fvg2 <- qza_to_phyloseq(features = "data/11_dada2_table_fvg2.qza",
+                              taxonomy = "data/7_taxclass_BEE_ASVs_fvg2.qza",
                               metadata = "data/5_metadata_fvg2_q2.tsv")
 
 
