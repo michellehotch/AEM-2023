@@ -72,7 +72,7 @@ metadata_fecal$day<-factor(metadata_fecal$day,levels=c("0", "3", "5", "8", "14")
 #for figures
 qpcr_metadata <- read_csv("data/qpcr_metadata.csv")
 
-qpcr_metadata$treatment <- factor(qpcr_metadata$treatment, levels = c("Control", "DMSO", "1 ng/µL", "10 ng/µL", "100 ng/µL", "800 ng/µL"))
+qpcr_metadata$treatment <- factor(qpcr_metadata$treatment, levels = c("Control", "DMSO", "1 ng/mL", "10 ng/mL", "100 ng/mL", "800 ng/mL"))
 
 qpcr_metadata$day <- factor(qpcr_metadata$day, levels = c("0", "3", "5", "8", "14", "Gut"))
 
@@ -142,7 +142,7 @@ genecountotal_data_long <-
 
 genecountotal_data_long$taxa_name <- sub("\\....*","",genecountotal_data_long$taxa_id)
 
-genecountotal_data_long$treatment <- factor(genecountotal_data_long$treatment, levels = c("Control", "DMSO", "1 ng/µL", "10 ng/µL", "100 ng/µL", "800 ng/µL"))
+genecountotal_data_long$treatment <- factor(genecountotal_data_long$treatment, levels = c("Control", "DMSO", "1 ng/mL", "10 ng/mL", "100 ng/mL", "800 ng/mL"))
 
 genecountotal_data_long$day <- factor(genecountotal_data_long$day, levels = c("0", "3", "5", "8", "14", "Gut"))
 
@@ -164,9 +164,9 @@ fvg2_qpcr_data$scid <- as.factor(fvg2_qpcr_data$scid)
 ```{r}
 #RELATIVE ABUNDANCE
 
-braycurtdm_fvg1<-read_qza("results/bray_curtis_distance_matrix_fvg.qza")
+braycurtdm_fvg1<-read_qza("data/bray_curtis_distance_matrix_fvg.qza")
 
-braycurtdm_fvg2<-read_qza("results/fvg2_bray_curtis_distance_matrix.qza")
+braycurtdm_fvg2<-read_qza("data/fvg2_bray_curtis_distance_matrix.qza")
 
 fvg2_dist_pairvother <- read_csv("data/fvg2_dist_pairvother.csv")
 

@@ -24,9 +24,9 @@ library(glmmTMB)
 ```{r}
 mcdata <- read_csv("data/mc_production.csv")
 
-mcdata$treatment <- case_match(mcdata$treatment, "Control" ~ "Control", "DMSO" ~ "DMSO", "1ppb" ~ "1 ng/µL", "10ppb" ~ "10 ng/µL", "100ppb" ~ "100 ng/µL", "800ppb" ~ "800 ng/µL")
+mcdata$treatment <- case_match(mcdata$treatment, "Control" ~ "Control", "DMSO" ~ "DMSO", "1ppb" ~ "1 ng/mL", "10ppb" ~ "10 ng/mL", "100ppb" ~ "100 ng/mL", "800ppb" ~ "800 ng/mL")
 
-mcdata$treatment <- factor(mcdata$treatment, levels = c("Control", "DMSO", "1 ng/µL", "10 ng/µL", "100 ng/µL", "800 ng/µL"))
+mcdata$treatment <- factor(mcdata$treatment, levels = c("Control", "DMSO", "1 ng/mL", "10 ng/mL", "100 ng/mL", "800 ng/mL"))
 
 mcdata$sc_id <- as.factor(mcdata$sc_id)
 mcdata$age <- as.factor(mcdata$age)
