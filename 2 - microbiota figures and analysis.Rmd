@@ -328,7 +328,7 @@ fecalstackrel_fig<-
                                  expression(italic("Schmidhempelia")),
                                  expression(italic("Snodgrassella")),
                                  "Other"))+
-  guides(fill=guide_legend(nrow=3,byrow=TRUE))
+  guides(fill=guide_legend(nrow=1,byrow=TRUE))
 ```
 
 ####4A - Fecal vs. Gut 1
@@ -540,7 +540,7 @@ genecount_lother$taxa_name_p <- factor(genecount_lother$taxa_name_p, levels = c(
 
 ```{r}
 #faceted by source colony
-fecalstack16S_fig<-
+#fecalstack16S_fig<-
 genecount_lother %>% 
   filter(!(is.na(taxa_abunpermicrol))) %>% 
   filter(!(day =="Gut")) %>% 
@@ -606,7 +606,7 @@ genecount_lother2c$day <-
 genecount_lother2c$age <- 
   recode_factor(genecount_lother2c$age, "1" = "Age: 1 Week", "3" = "Age: 3 Weeks")
 
-fecal16S_total<-
+#fecal16S_total<-
 genecount_lother2c %>% 
   filter(!(is.na(abundance))) %>% 
   filter(!(is.na(final_fecal_volume_mL))) %>% 
