@@ -10,6 +10,7 @@ editor_options:
 
 ```{r}
 library(tidyverse)
+library(ggpubr)
 library(RColorBrewer)
 library(MetBrewer)
 library(lme4) 
