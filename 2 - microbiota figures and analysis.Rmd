@@ -1492,8 +1492,6 @@ fvg2_pcoa3<-
 
 ##6 - Fecal vs. Gut 2 - Gut and Fecal 16S Correlations
 
-need figure for the t-test results, probably into supplemental, maybe?
-
 ```{r}
 #Bifidobacterium
 
