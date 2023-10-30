@@ -431,6 +431,7 @@ eggcountA_TMB <- glmmTMB(egg_count ~ treatment*age + (1|sc_id), data = mcdata, f
 eggcountB_TMB <- glmmTMB(egg_count ~ treatment+age + (1|sc_id), data = mcdata, family = nbinom1())
 
 anova(eggcountA_TMB,eggcountB_TMB)
+
 #interaction not signficant, return to glmer.nb for consistency
 
 eggcountB_nb <- glmer.nb(egg_count ~ treatment+age + (1|sc_id), data = mcdata)
@@ -442,7 +443,6 @@ eggcountD_nb <- glmer.nb(egg_count ~ treatment + (1|sc_id), data = mcdata)
 anova(eggcountB_nb, eggcountC_nb)
 anova(eggcountB_nb, eggcountD_nb)
 
-#nothing significant
 
 check_model(eggcountB_nb)
 performance::check_overdispersion(eggcountB_nb)
@@ -488,6 +488,7 @@ anova(larvaecountB, larvaecountD)
 
 check_model(larvaecountB)
 performance::check_overdispersion(larvaecountB)
+
 #overdispersion detected, try negative binomial distribution
 
 
